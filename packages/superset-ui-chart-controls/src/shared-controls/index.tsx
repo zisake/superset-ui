@@ -35,16 +35,26 @@
  */
 import React from 'react';
 import {
+  FeatureFlag,
   t,
   getCategoricalSchemeRegistry,
   getSequentialSchemeRegistry,
+  isFeatureEnabled,
   SequentialScheme,
   legacyValidateInteger,
   validateNonEmpty,
 } from '@superset-ui/core';
 
-import { mainMetric, formatSelectOptions } from '../utils';
-import { TIME_FILTER_LABELS } from '../constants';
+import {
+  formatSelectOptions,
+  D3_FORMAT_OPTIONS,
+  D3_FORMAT_DOCS,
+  D3_TIME_FORMAT_OPTIONS,
+  D3_TIME_FORMAT_DOCS,
+  DEFAULT_TIME_FORMAT,
+  DEFAULT_NUMBER_FORMAT,
+} from '../utils';
+import { TIME_FILTER_LABELS, TIME_COLUMN_OPTION } from '../constants';
 import {
   Metric,
   SharedControlConfig,
@@ -54,48 +64,29 @@ import {
 } from '../types';
 import { ColumnOption } from '../components/ColumnOption';
 
+import {
+  dnd_adhoc_filters,
+  dnd_adhoc_metric,
+  dnd_adhoc_metrics,
+  dnd_granularity_sqla,
+  dnd_sort_by,
+  dnd_secondary_metric,
+  dnd_size,
+  dnd_x,
+  dnd_y,
+  dndColumnsControl,
+  dndEntity,
+  dndGroupByControl,
+  dndSeries,
+} from './dndControls';
+
 const categoricalSchemeRegistry = getCategoricalSchemeRegistry();
 const sequentialSchemeRegistry = getSequentialSchemeRegistry();
 
 export const PRIMARY_COLOR = { r: 0, g: 122, b: 135, a: 1 };
 
-// input choices & options
-export const D3_FORMAT_OPTIONS = [
-  ['SMART_NUMBER', 'Adaptative formating'],
-  ['~g', 'Original value'],
-  [',d', ',d (12345.432 => 12,345)'],
-  ['.1s', '.1s (12345.432 => 10k)'],
-  ['.3s', '.3s (12345.432 => 12.3k)'],
-  [',.1%', ',.1% (12345.432 => 1,234,543.2%)'],
-  ['.3%', '.3% (12345.432 => 1234543.200%)'],
-  ['.4r', '.4r (12345.432 => 12350)'],
-  [',.3f', ',.3f (12345.432 => 12,345.432)'],
-  ['+,', '+, (12345.432 => +12,345.432)'],
-  ['$,.2f', '$,.2f (12345.432 => $12,345.43)'],
-  ['DURATION', 'Duration in ms (66000 => 1m 6s)'],
-  ['DURATION_SUB', 'Duration in ms (100.40008 => 100ms 400µs 80ns)'],
-];
-
 const ROW_LIMIT_OPTIONS = [10, 50, 100, 250, 500, 1000, 5000, 10000, 50000];
 const SERIES_LIMITS = [0, 5, 10, 25, 50, 100, 500];
-
-export const D3_FORMAT_DOCS = t('D3 format syntax: https://github.com/d3/d3-format');
-
-export const D3_TIME_FORMAT_OPTIONS = [
-  ['smart_date', t('Adaptative formating')],
-  ['%d/%m/%Y', '%d/%m/%Y | 14/01/2019'],
-  ['%m/%d/%Y', '%m/%d/%Y | 01/14/2019'],
-  ['%Y-%m-%d', '%Y-%m-%d | 2019-01-14'],
-  ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M:%S | 2019-01-14 01:32:10'],
-  ['%d-%m-%Y %H:%M:%S', '%Y-%m-%d %H:%M:%S | 14-01-2019 01:32:10'],
-  ['%H:%M:%S', '%H:%M:%S | 01:32:10'],
-];
-
-const timeColumnOption = {
-  verbose_name: 'Time',
-  column_name: '__timestamp',
-  description: t('A reference to the [Time] configuration, taking granularity into account'),
-};
 
 type Control = {
   savedMetrics?: Metric[] | null;
@@ -105,7 +96,6 @@ type Control = {
 const groupByControl: SharedControlConfig<'SelectControl', ColumnMeta> = {
   type: 'SelectControl',
   label: t('Group by'),
-  queryField: 'groupby',
   multi: true,
   freeForm: true,
   clearable: true,
@@ -126,7 +116,7 @@ const groupByControl: SharedControlConfig<'SelectControl', ColumnMeta> = {
     if (state.datasource) {
       const options = state.datasource.columns.filter(c => c.groupby);
       if (includeTime) {
-        options.push(timeColumnOption);
+        options.unshift(TIME_COLUMN_OPTION);
       }
       newState.options = options;
     }
@@ -137,21 +127,14 @@ const groupByControl: SharedControlConfig<'SelectControl', ColumnMeta> = {
 
 const metrics: SharedControlConfig<'MetricsControl'> = {
   type: 'MetricsControl',
-  queryField: 'metrics',
   multi: true,
   label: t('Metrics'),
   validators: [validateNonEmpty],
-  default: (c: Control) => {
-    const metric = mainMetric(c.savedMetrics);
-    return metric ? [metric] : null;
-  },
-  mapStateToProps: ({ datasource }) => {
-    return {
-      columns: datasource ? datasource.columns : [],
-      savedMetrics: datasource ? datasource.metrics : [],
-      datasourceType: datasource?.type,
-    };
-  },
+  mapStateToProps: ({ datasource }) => ({
+    columns: datasource ? datasource.columns : [],
+    savedMetrics: datasource ? datasource.metrics : [],
+    datasourceType: datasource?.type,
+  }),
   description: t('One or many metrics to display'),
 };
 
@@ -160,7 +143,6 @@ const metric: SharedControlConfig<'MetricsControl'> = {
   multi: false,
   label: t('Metric'),
   description: t('Metric'),
-  default: (c: Control) => mainMetric(c.savedMetrics),
 };
 
 const datasourceControl: SharedControlConfig<'DatasourceControl'> = {
@@ -168,11 +150,10 @@ const datasourceControl: SharedControlConfig<'DatasourceControl'> = {
   label: t('Datasource'),
   default: null,
   description: null,
-  mapStateToProps: ({ datasource }) => {
-    return {
-      datasource,
-    };
-  },
+  mapStateToProps: ({ datasource, form_data }) => ({
+    datasource,
+    form_data,
+  }),
 };
 
 const viz_type: SharedControlConfig<'VizTypeControl'> = {
@@ -319,7 +300,7 @@ const time_range: SharedControlConfig<'DateFilterControl'> = {
   type: 'DateFilterControl',
   freeForm: true,
   label: TIME_FILTER_LABELS.time_range,
-  default: t('Last week'), // this value is translated, but the backend wouldn't understand a translated value?
+  default: t('No filter'), // this value is translated, but the backend wouldn't understand a translated value?
   description: t(
     'The time range for the visualization. All relative times, e.g. "Last month", ' +
       '"Last 7 days", "now", etc. are evaluated on the server using the server\'s ' +
@@ -328,7 +309,8 @@ const time_range: SharedControlConfig<'DateFilterControl'> = {
       "using the engine's local timezone. Note one can explicitly set the timezone " +
       'per the ISO 8601 format if specifying either the start and/or end time.',
   ),
-  mapStateToProps: ({ form_data }) => ({
+  mapStateToProps: ({ datasource, form_data }) => ({
+    datasource,
     endpoints: form_data?.time_range_endpoints || null,
   }),
 };
@@ -347,6 +329,7 @@ const limit: SharedControlConfig<'SelectControl'> = {
   freeForm: true,
   label: t('Series limit'),
   validators: [legacyValidateInteger],
+  default: 100,
   choices: formatSelectOptions(SERIES_LIMITS),
   description: t(
     'Limits the number of time series that get displayed. A sub query ' +
@@ -356,7 +339,7 @@ const limit: SharedControlConfig<'SelectControl'> = {
   ),
 };
 
-const timeseries_limit_metric: SharedControlConfig<'MetricsControl'> = {
+const sort_by: SharedControlConfig<'MetricsControl'> = {
   type: 'MetricsControl',
   label: t('Sort By'),
   default: null,
@@ -406,6 +389,7 @@ const y: SharedControlConfig<'MetricsControl'> = {
 const size: SharedControlConfig<'MetricsControl'> = {
   ...metric,
   label: t('Bubble Size'),
+  description: t('Metric used to calculate bubble size'),
   default: null,
 };
 
@@ -414,7 +398,7 @@ const y_axis_format: SharedControlConfig<'SelectControl'> = {
   freeForm: true,
   label: t('Y Axis Format'),
   renderTrigger: true,
-  default: 'SMART_NUMBER',
+  default: DEFAULT_NUMBER_FORMAT,
   choices: D3_FORMAT_OPTIONS,
   description: D3_FORMAT_DOCS,
   mapStateToProps: state => {
@@ -431,17 +415,28 @@ const y_axis_format: SharedControlConfig<'SelectControl'> = {
   },
 };
 
+const x_axis_time_format: SharedControlConfig<'SelectControl'> = {
+  type: 'SelectControl',
+  freeForm: true,
+  label: t('Time format'),
+  renderTrigger: true,
+  default: DEFAULT_TIME_FORMAT,
+  choices: D3_TIME_FORMAT_OPTIONS,
+  description: D3_TIME_FORMAT_DOCS,
+};
+
 const adhoc_filters: SharedControlConfig<'AdhocFilterControl'> = {
   type: 'AdhocFilterControl',
   label: t('Filters'),
   default: null,
   description: '',
-  mapStateToProps: ({ datasource }) => ({
+  mapStateToProps: ({ datasource, form_data }) => ({
     columns: datasource?.columns.filter(c => c.filterable) || [],
     savedMetrics: datasource?.metrics || [],
+    // current active adhoc metrics
+    selectedMetrics: form_data.metrics || (form_data.metric ? [form_data.metric] : []),
     datasource,
   }),
-  provideFormDataToProps: true,
 };
 
 const color_scheme: SharedControlConfig<'ColorSchemeControl'> = {
@@ -467,32 +462,36 @@ const label_colors: SharedControlConfig<'ColorMapControl'> = {
   }),
 };
 
+const enableExploreDnd = isFeatureEnabled(FeatureFlag.ENABLE_EXPLORE_DRAG_AND_DROP);
+
 const sharedControls = {
-  metrics,
-  metric,
+  metrics: enableExploreDnd ? dnd_adhoc_metrics : metrics,
+  metric: enableExploreDnd ? dnd_adhoc_metric : metric,
   datasource: datasourceControl,
   viz_type,
   color_picker,
   metric_2,
   linear_color_scheme,
-  secondary_metric,
-  groupby: groupByControl,
-  columns: columnsControl,
+  secondary_metric: enableExploreDnd ? dnd_secondary_metric : secondary_metric,
+  groupby: enableExploreDnd ? dndGroupByControl : groupByControl,
+  columns: enableExploreDnd ? dndColumnsControl : columnsControl,
   druid_time_origin,
   granularity,
-  granularity_sqla,
+  granularity_sqla: enableExploreDnd ? dnd_granularity_sqla : granularity_sqla,
   time_grain_sqla,
   time_range,
   row_limit,
   limit,
-  timeseries_limit_metric,
-  series,
-  entity,
-  x,
-  y,
-  size,
+  timeseries_limit_metric: enableExploreDnd ? dnd_sort_by : sort_by,
+  orderby: enableExploreDnd ? dnd_sort_by : sort_by,
+  series: enableExploreDnd ? dndSeries : series,
+  entity: enableExploreDnd ? dndEntity : entity,
+  x: enableExploreDnd ? dnd_x : x,
+  y: enableExploreDnd ? dnd_y : y,
+  size: enableExploreDnd ? dnd_size : size,
   y_axis_format,
-  adhoc_filters,
+  x_axis_time_format,
+  adhoc_filters: enableExploreDnd ? dnd_adhoc_filters : adhoc_filters,
   color_scheme,
   label_colors,
 };

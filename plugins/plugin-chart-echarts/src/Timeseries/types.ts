@@ -16,7 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { AnnotationLayer } from '@superset-ui/core';
+import {
+  AnnotationLayer,
+  ChartDataResponseResult,
+  ChartProps,
+  DataRecordValue,
+  QueryFormData,
+  SetDataMaskHook,
+  TimeGranularity,
+} from '@superset-ui/core';
+import { EChartsOption } from 'echarts';
+import { DEFAULT_LEGEND_FORM_DATA, EchartsLegendFormData } from '../types';
 
 export enum EchartsTimeseriesContributionType {
   Row = 'row',
@@ -33,7 +43,7 @@ export enum EchartsTimeseriesSeriesType {
   End = 'end',
 }
 
-export type EchartsTimeseriesFormData = {
+export type EchartsTimeseriesFormData = QueryFormData & {
   annotationLayers: AnnotationLayer[];
   area: boolean;
   colorScheme?: string;
@@ -53,13 +63,25 @@ export type EchartsTimeseriesFormData = {
   rowLimit: number;
   seriesType: EchartsTimeseriesSeriesType;
   stack: boolean;
+  tooltipTimeFormat?: string;
   truncateYAxis: boolean;
   yAxisFormat?: string;
+  yAxisTitle: string;
+  xAxisShowMinLabel?: boolean;
+  xAxisShowMaxLabel?: boolean;
+  xAxisTimeFormat?: string;
+  timeGrainSqla?: TimeGranularity;
   yAxisBounds: [number | undefined | null, number | undefined | null];
   zoomable: boolean;
-};
+  richTooltip: boolean;
+  xAxisLabelRotation: number;
+  emitFilter: boolean;
+  groupby: string[];
+} & EchartsLegendFormData;
 
+// @ts-ignore
 export const DEFAULT_FORM_DATA: EchartsTimeseriesFormData = {
+  ...DEFAULT_LEGEND_FORM_DATA,
   annotationLayers: [],
   area: false,
   forecastEnabled: false,
@@ -68,16 +90,38 @@ export const DEFAULT_FORM_DATA: EchartsTimeseriesFormData = {
   forecastSeasonalityDaily: null,
   forecastSeasonalityWeekly: null,
   forecastSeasonalityYearly: null,
-  seriesType: EchartsTimeseriesSeriesType.Line,
   logAxis: false,
-  opacity: 0.2,
-  orderDesc: true,
-  stack: false,
   markerEnabled: false,
   markerSize: 6,
   minorSplitLine: false,
+  opacity: 0.2,
+  orderDesc: true,
   rowLimit: 10000,
+  seriesType: EchartsTimeseriesSeriesType.Line,
+  stack: false,
+  tooltipTimeFormat: 'smart_date',
   truncateYAxis: true,
   yAxisBounds: [null, null],
   zoomable: false,
+  richTooltip: true,
+  xAxisLabelRotation: 0,
+  emitFilter: false,
+  groupby: [],
+  yAxisTitle: '',
 };
+
+export interface EchartsTimeseriesChartProps extends ChartProps {
+  formData: EchartsTimeseriesFormData;
+  queriesData: ChartDataResponseResult[];
+}
+
+export interface TimeseriesChartTransformedProps {
+  formData: EchartsTimeseriesFormData;
+  height: number;
+  width: number;
+  echartOptions: EChartsOption;
+  emitFilter: boolean;
+  setDataMask: SetDataMaskHook;
+  labelMap: Record<string, DataRecordValue[]>;
+  groupby: string[];
+}

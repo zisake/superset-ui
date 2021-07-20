@@ -17,13 +17,18 @@
  * under the License.
  */
 import { t, ChartMetadata, ChartPlugin } from '@superset-ui/core';
+import transformProps from '../transformProps';
 import thumbnail from './images/thumbnail.png';
 import controlPanel from './controlPanel';
 
 const metadata = new ChartMetadata({
+  category: t('Evolution'),
   credits: ['http://nvd3.org'],
-  description: '',
+  description: t(
+    'Visualize two different time series using the same x-axis time range. This chart is being deprecated and we recommend using the Mixed Timeseries Chart instead!',
+  ),
   name: t('Multiple Line Charts'),
+  tags: [t('Multi-Variables'), t('Legacy'), t('nvd3')],
   thumbnail,
   useLegacyApi: true,
 });
@@ -31,8 +36,9 @@ const metadata = new ChartMetadata({
 export default class LineChartPlugin extends ChartPlugin {
   constructor() {
     super({
-      loadChart: () => import('./LineMulti'),
+      loadChart: () => import('../ReactNVD3'),
       metadata,
+      transformProps,
       controlPanel,
     });
   }

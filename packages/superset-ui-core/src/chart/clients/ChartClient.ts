@@ -29,7 +29,7 @@ export interface ChartData {
   annotationData: AnnotationData;
   datasource: PlainObject;
   formData: QueryFormData;
-  queryData: QueryData;
+  queriesData: QueryData[];
 }
 
 export default class ChartClient {
@@ -76,7 +76,7 @@ export default class ChartClient {
   async loadQueryData(
     formData: QueryFormData,
     options?: Partial<RequestConfig>,
-  ): Promise<QueryData> {
+  ): Promise<QueryData[]> {
     const { viz_type: visType } = formData;
     const metaDataRegistry = getChartMetadataRegistry();
     const buildQueryRegistry = getChartBuildQueryRegistry();
@@ -100,10 +100,9 @@ export default class ChartClient {
             ...options,
           };
 
-      return this.client.post(requestConfig).then(response => {
-        // let's assume response.json always has the shape of QueryData
-        return response.json as QueryData;
-      });
+      return this.client
+        .post(requestConfig)
+        .then(response => (Array.isArray(response.json) ? response.json : [response.json]));
     }
 
     return Promise.reject(new Error(`Unknown chart type: ${visType}`));
@@ -156,11 +155,11 @@ export default class ChartClient {
           this.loadAnnotations(formData.annotation_layers),
           this.loadDatasource(formData.datasource),
           this.loadQueryData(formData),
-        ]).then(([annotationData, datasource, queryData]) => ({
+        ]).then(([annotationData, datasource, queriesData]) => ({
           annotationData,
           datasource,
           formData,
-          queryData,
+          queriesData,
         })),
     );
   }

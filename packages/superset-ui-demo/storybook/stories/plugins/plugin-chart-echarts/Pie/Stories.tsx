@@ -21,7 +21,7 @@ export const WeekdayPie = ({ width, height }) => {
       chartType="echarts-pie"
       width={width}
       height={height}
-      queryData={{ data: weekday }}
+      queriesData={[{ data: weekday }]}
       formData={{
         colorScheme: 'supersetColors',
         groupby: ['Day'],
@@ -29,15 +29,15 @@ export const WeekdayPie = ({ width, height }) => {
         numberFormat: 'SMART_NUMBER',
         donut: boolean('Donut', false),
         innerRadius: number('Inner Radius', 30),
-        outerRadius: number('Outer Radius', 50),
+        outerRadius: number('Outer Radius', 70),
         labelsOutside: boolean('Labels outside', true),
         labelLine: boolean('Label line', true),
         showLabels: boolean('Show labels', true),
         showLegend: boolean('Show legend', false),
-        pieLabelType: select(
+        labelType: select(
           'Pie label type',
           ['key', 'value', 'percent', 'key_value', 'key_percent', 'key_value_percent'],
-          'key_value_percent',
+          'key',
         ),
       }}
     />
@@ -50,7 +50,7 @@ export const PopulationPie = ({ width, height }) => {
       chartType="echarts-pie"
       width={width}
       height={height}
-      queryData={{ data: population }}
+      queriesData={[{ data: population }]}
       formData={{
         colorScheme: 'supersetColors',
         groupby: ['Country'],
@@ -58,15 +58,15 @@ export const PopulationPie = ({ width, height }) => {
         numberFormat: 'SMART_NUMBER',
         donut: boolean('Donut', false),
         innerRadius: number('Inner Radius', 30),
-        outerRadius: number('Outer Radius', 50),
+        outerRadius: number('Outer Radius', 70),
         labelsOutside: boolean('Labels outside', false),
-        labelLine: boolean('Label line', false),
+        labelLine: boolean('Label line', true),
         showLabels: boolean('Show labels', true),
         showLegend: boolean('Show legend', false),
-        pieLabelType: select(
+        labelType: select(
           'Pie label type',
           ['key', 'value', 'percent', 'key_value', 'key_percent', 'key_value_percent'],
-          'key_value_percent',
+          'key',
         ),
       }}
     />

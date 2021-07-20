@@ -18,17 +18,42 @@
  */
 import { t, ChartMetadata, ChartPlugin } from '@superset-ui/core';
 import controlPanel from './controlPanel';
-import transformProps from '../BigNumber/transformProps';
+import transformProps, {
+  BigNumberChartProps,
+  BigNumberFormData,
+} from '../BigNumber/transformProps';
+import example1 from './images/BigNumber.jpg';
+import example2 from './images/BigNumber2.jpg';
 import thumbnail from './images/thumbnail.png';
 
 const metadata = new ChartMetadata({
-  description: '',
+  category: t('KPI'),
+  description: t(
+    'Showcases a single metric front-and-center. Big number is best used to call attention to a KPI or the one thing you want your audience to focus on.',
+  ),
+  exampleGallery: [
+    { url: example1, caption: t('A Big Number') },
+    { url: example2, caption: t('With a subheader') },
+  ],
   name: t('Big Number'),
+  tags: [
+    t('Additive'),
+    t('Business'),
+    t('Formattable'),
+    t('Legacy'),
+    t('Percentages'),
+    t('Highly-used'),
+    t('Report'),
+    t('Text'),
+  ],
   thumbnail,
   useLegacyApi: true,
 });
 
-export default class BigNumberTotalChartPlugin extends ChartPlugin {
+export default class BigNumberTotalChartPlugin extends ChartPlugin<
+  BigNumberFormData,
+  BigNumberChartProps
+> {
   constructor() {
     super({
       loadChart: () => import('../BigNumber/BigNumber'),

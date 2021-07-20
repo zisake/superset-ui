@@ -1,14 +1,11 @@
 /* eslint-disable camelcase */
-import { QueryObject } from './types/Query';
-import { QueryFormData } from './types/QueryFormData';
-import processGroupby from './processGroupby';
-import convertMetric from './convertMetric';
+import { QueryObject, QueryObjectFilterClause } from './types/Query';
+import { QueryFieldAliases, QueryFormData } from './types/QueryFormData';
 import processFilters from './processFilters';
 import extractExtras from './extractExtras';
 import extractQueryFields from './extractQueryFields';
-import { appendExtraFormData, overrideExtraFormData } from './processExtraFormData';
-
-export const DTTM_ALIAS = '__timestamp';
+import { overrideExtraFormData } from './processExtraFormData';
+import { AdhocFilter } from './types';
 
 /**
  * Build the common segments of all query objects (e.g. the granularity field derived from
@@ -17,59 +14,76 @@ export const DTTM_ALIAS = '__timestamp';
  * Note the type of the formData argument passed in here is the type of the formData for a
  * specific viz, which is a subtype of the generic formData shared among all viz types.
  */
-export default function buildQueryObject<T extends QueryFormData>(formData: T): QueryObject {
+export default function buildQueryObject<T extends QueryFormData>(
+  formData: T,
+  queryFields?: QueryFieldAliases,
+): QueryObject {
   const {
     annotation_layers = [],
-    extra_form_data = {},
+    extra_form_data,
     time_range,
     since,
     until,
-    order_desc,
     row_limit,
     row_offset,
+    order_desc,
     limit,
     timeseries_limit_metric,
-    queryFields,
     granularity,
     url_params = {},
+    custom_params = {},
     ...residualFormData
   } = formData;
-  const { append_form_data = {}, override_form_data = {} } = extra_form_data;
+  const {
+    adhoc_filters: appendAdhocFilters = [],
+    filters: appendFilters = [],
+    custom_form_data = {},
+    ...overrides
+  } = extra_form_data || {};
 
   const numericRowLimit = Number(row_limit);
   const numericRowOffset = Number(row_offset);
-  const { metrics, groupby, columns } = extractQueryFields(residualFormData, queryFields);
-  const groupbySet = new Set([...columns, ...groupby]);
+  const { metrics, columns, orderby } = extractQueryFields(residualFormData, queryFields);
 
+  // collect all filters for conversion to simple filters/freeform clauses
   const extras = extractExtras(formData);
+  const { filters: extraFilters } = extras;
+  const filterFormData: {
+    filters: QueryObjectFilterClause[];
+    adhoc_filters: AdhocFilter[];
+  } = {
+    filters: [...extraFilters, ...appendFilters],
+    adhoc_filters: [...(formData.adhoc_filters || []), ...appendAdhocFilters],
+  };
   const extrasAndfilters = processFilters({
     ...formData,
     ...extras,
+    ...filterFormData,
   });
 
   let queryObject: QueryObject = {
-    time_range,
-    since,
-    until,
-    granularity,
+    // fallback `null` to `undefined` so they won't be sent to the backend
+    // (JSON.strinify will ignore `undefined`.)
+    time_range: time_range || undefined,
+    since: since || undefined,
+    until: until || undefined,
+    granularity: granularity || undefined,
     ...extras,
     ...extrasAndfilters,
+    columns,
+    metrics,
+    orderby,
     annotation_layers,
-    groupby: processGroupby(Array.from(groupbySet)),
-    is_timeseries: groupbySet.has(DTTM_ALIAS),
-    metrics: metrics.map(convertMetric),
-    order_desc: typeof order_desc === 'undefined' ? true : order_desc,
-    orderby: [],
     row_limit: row_limit == null || Number.isNaN(numericRowLimit) ? undefined : numericRowLimit,
     row_offset: row_offset == null || Number.isNaN(numericRowOffset) ? undefined : numericRowOffset,
     timeseries_limit: limit ? Number(limit) : 0,
-    timeseries_limit_metric: timeseries_limit_metric
-      ? convertMetric(timeseries_limit_metric)
-      : null,
-    url_params,
+    timeseries_limit_metric: timeseries_limit_metric || undefined,
+    order_desc: typeof order_desc === 'undefined' ? true : order_desc,
+    url_params: url_params || undefined,
+    custom_params,
   };
-  // append and override extra form data used by native filters
-  queryObject = appendExtraFormData(queryObject, append_form_data);
-  queryObject = overrideExtraFormData(queryObject, override_form_data);
-  return queryObject;
+  // override extra form data used by native and cross filters
+  queryObject = overrideExtraFormData(queryObject, overrides);
+
+  return { ...queryObject, custom_form_data };
 }

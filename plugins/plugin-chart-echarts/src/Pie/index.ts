@@ -16,13 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { t, ChartMetadata, ChartPlugin } from '@superset-ui/core';
+import { Behavior, ChartMetadata, ChartPlugin, t } from '@superset-ui/core';
 import buildQuery from './buildQuery';
 import controlPanel from './controlPanel';
 import transformProps from './transformProps';
 import thumbnail from './images/thumbnail.png';
+import example1 from './images/Pie1.jpg';
+import example2 from './images/Pie2.jpg';
+import example3 from './images/Pie3.jpg';
+import example4 from './images/Pie4.jpg';
+import { EchartsPieChartProps, EchartsPieFormData } from './types';
 
-export default class EchartsPieChartPlugin extends ChartPlugin {
+export default class EchartsPieChartPlugin extends ChartPlugin<
+  EchartsPieFormData,
+  EchartsPieChartProps
+> {
   /**
    * The constructor is used to pass relevant metadata and callbacks that get
    * registered in respective registries that are used throughout the library
@@ -39,9 +47,28 @@ export default class EchartsPieChartPlugin extends ChartPlugin {
       controlPanel,
       loadChart: () => import('./EchartsPie'),
       metadata: new ChartMetadata({
+        behaviors: [Behavior.INTERACTIVE_CHART],
+        category: t('Part of a Whole'),
         credits: ['https://echarts.apache.org'],
-        description: 'Pie Chart (Apache ECharts)',
+        description: t(`The classic. Great for showing how much of a company each investor gets, what demographics follow your blog, or what portion of the budget goes to the military industrial complex.
+
+        Pie charts can be difficult to interpret precisely. If clarity of relative proportion is important, consider using a bar or other chart type instead.`),
+        exampleGallery: [
+          { url: example1 },
+          { url: example2 },
+          { url: example3 },
+          { url: example4 },
+        ],
         name: t('Pie Chart'),
+        tags: [
+          t('Aesthetic'),
+          t('Categorical'),
+          t('Circular'),
+          t('Comparison'),
+          t('Percentages'),
+          t('Highly-used'),
+          t('Proportional'),
+        ],
         thumbnail,
       }),
       transformProps,

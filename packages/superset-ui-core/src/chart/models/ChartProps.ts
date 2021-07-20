@@ -1,6 +1,16 @@
+/** Type checking is disabled for this file due to reselect only supporting
+ * TS declarations for selectors with up to 12 arguments. */
+// @ts-nocheck
 import { createSelector } from 'reselect';
-import { convertKeysToCamelCase, Datasource } from '../..';
-import { HandlerFunction, PlainObject, SetExtraFormDataHook } from '../types/Base';
+import {
+  AppSection,
+  Behavior,
+  convertKeysToCamelCase,
+  Datasource,
+  FilterState,
+  JsonObject,
+} from '../..';
+import { HandlerFunction, PlainObject, SetDataMaskHook } from '../types/Base';
 import { QueryData, DataRecordFilters } from '..';
 
 // TODO: more specific typing for these fields of ChartProps
@@ -23,8 +33,8 @@ type Hooks = {
   onError?: HandlerFunction;
   /** use the vis as control to update state */
   setControlValue?: HandlerFunction;
-  /** handle native filters */
-  setExtraFormData?: SetExtraFormDataHook;
+  /** handle external filters */
+  setDataMask?: SetDataMaskHook;
   /** handle tooltip */
   setTooltip?: HandlerFunction;
 } & PlainObject;
@@ -47,19 +57,26 @@ export interface ChartPropsConfig {
   height?: number;
   /** Programmatic overrides such as event handlers, renderers */
   hooks?: Hooks;
-  /** Formerly called "payload". This property going to be deprecated because
-   * contains only first item in response data array (use `queriesData` instead) */
-  queryData?: QueryData;
-  /** Formerly called "payload" */
+  /** The data returned for all queries objects in the request */
   queriesData?: QueryData[];
   /** Chart width */
   width?: number;
+  /** Own chart state that saved in dashboard */
+  ownState?: JsonObject;
+  /** Filter state that saved in dashboard */
+  filterState?: FilterState;
+  /** Set of actual behaviors that this instance of chart should use */
+  behaviors?: Behavior[];
+  /** Application section of the chart on the screen (in what components/screen it placed) */
+  appSection?: AppSection;
+  /** is the chart refreshing its contents */
+  isRefreshing?: boolean;
 }
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 600;
 
-export default class ChartProps {
+export default class ChartProps<FormData extends RawFormData = RawFormData> {
   static createSelector: () => ChartPropsSelector;
 
   annotationData: AnnotationData;
@@ -72,29 +89,41 @@ export default class ChartProps {
 
   formData: CamelCaseFormData;
 
-  rawFormData: RawFormData;
+  rawFormData: FormData;
 
   height: number;
 
   hooks: Hooks;
 
-  queryData: QueryData;
+  ownState: JsonObject;
+
+  filterState: FilterState;
 
   queriesData: QueryData[];
 
   width: number;
 
-  constructor(config: ChartPropsConfig = {}) {
+  behaviors: Behavior[];
+
+  appSection?: AppSection;
+
+  isRefreshing?: boolean;
+
+  constructor(config: ChartPropsConfig & { formData?: FormData } = {}) {
     const {
       annotationData = {},
       datasource = {},
-      formData = {},
+      formData = {} as FormData,
       hooks = {},
+      ownState = {},
+      filterState = {},
       initialValues = {},
-      queryData = {},
       queriesData = [],
+      behaviors = [],
       width = DEFAULT_WIDTH,
       height = DEFAULT_HEIGHT,
+      appSection,
+      isRefreshing,
     } = config;
     this.width = width;
     this.height = height;
@@ -105,8 +134,12 @@ export default class ChartProps {
     this.rawFormData = formData;
     this.hooks = hooks;
     this.initialValues = initialValues;
-    this.queryData = queryData;
     this.queriesData = queriesData;
+    this.ownState = ownState;
+    this.filterState = filterState;
+    this.behaviors = behaviors;
+    this.appSection = appSection;
+    this.isRefreshing = isRefreshing;
   }
 }
 
@@ -119,9 +152,13 @@ ChartProps.createSelector = function create(): ChartPropsSelector {
     input => input.height,
     input => input.hooks,
     input => input.initialValues,
-    input => input.queryData,
     input => input.queriesData,
     input => input.width,
+    input => input.ownState,
+    input => input.filterState,
+    input => input.behaviors,
+    input => input.appSection,
+    input => input.isRefreshing,
     (
       annotationData,
       datasource,
@@ -129,9 +166,13 @@ ChartProps.createSelector = function create(): ChartPropsSelector {
       height,
       hooks,
       initialValues,
-      queryData,
       queriesData,
       width,
+      ownState,
+      filterState,
+      behaviors,
+      appSection,
+      isRefreshing,
     ) =>
       new ChartProps({
         annotationData,
@@ -140,9 +181,13 @@ ChartProps.createSelector = function create(): ChartPropsSelector {
         height,
         hooks,
         initialValues,
-        queryData,
         queriesData,
+        ownState,
+        filterState,
         width,
+        behaviors,
+        appSection,
+        isRefreshing,
       }),
   );
 };

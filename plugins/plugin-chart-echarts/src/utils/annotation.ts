@@ -23,7 +23,6 @@ import {
   AnnotationLayer,
   AnnotationOpacity,
   AnnotationType,
-  FormulaAnnotationLayer,
   isRecordAnnotationResult,
   isTableAnnotationLayer,
   isTimeseriesAnnotationResult,
@@ -32,15 +31,16 @@ import {
 import { parse as mathjsParse } from 'mathjs';
 
 export function evalFormula(
-  formula: FormulaAnnotationLayer,
+  formula: AnnotationLayer,
   data: TimeseriesDataRecord[],
 ): [Date, number][] {
   const { value } = formula;
-  const node = mathjsParse(value);
+  const node = mathjsParse(value as string);
   const func = node.compile();
-  return data.map(row => {
-    return [new Date(Number(row.__timestamp)), func.evaluate({ x: row.__timestamp }) as number];
-  });
+  return data.map(row => [
+    new Date(Number(row.__timestamp)),
+    func.evaluate({ x: row.__timestamp }) as number,
+  ]);
 }
 
 export function parseAnnotationOpacity(opacity?: AnnotationOpacity): number {

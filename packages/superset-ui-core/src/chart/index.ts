@@ -15,6 +15,10 @@ export { default as getChartTransformPropsRegistry } from './registries/ChartTra
 
 export { default as ChartDataProvider } from './components/ChartDataProvider';
 
-export { SetExtraFormDataHook } from './types/Base';
+export * from './types/Base';
 export * from './types/TransformFunction';
 export * from './types/QueryResponse';
+
+export { default as __hack_reexport_chart_Base } from './types/Base';
+export { default as __hack_reexport_chart_TransformFunction } from './types/TransformFunction';
+export { default as __hack_reexport_chart_QueryResponse } from './types/QueryResponse';

@@ -16,55 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { QueryObject } from './types/Query';
-
-const ALLOWED_OVERRIDES = ['time_grain_sqla', 'time_range', 'since', 'until'];
-const ALLOWED_APPENDS = ['adhoc_filters', 'filters', 'groupby'];
+import { ExtraFormDataOverride, QueryObject } from './types';
+import {
+  EXTRA_FORM_DATA_OVERRIDE_EXTRA_KEYS,
+  EXTRA_FORM_DATA_OVERRIDE_REGULAR_MAPPINGS,
+} from './constants';
 
 export function overrideExtraFormData(
   queryObject: QueryObject,
-  overrideFormData: Partial<QueryObject>,
+  overrideFormData: ExtraFormDataOverride,
 ): QueryObject {
-  const overriddenFormData = { ...queryObject };
-  ALLOWED_OVERRIDES.forEach(key => {
+  const overriddenFormData: QueryObject = { ...queryObject };
+  const { extras: overriddenExtras = {} } = overriddenFormData;
+  Object.entries(EXTRA_FORM_DATA_OVERRIDE_REGULAR_MAPPINGS).forEach(([key, target]) => {
+    const value = overrideFormData[key as keyof ExtraFormDataOverride];
+    if (value !== undefined) {
+      overriddenFormData[target] = value;
+    }
+  });
+  EXTRA_FORM_DATA_OVERRIDE_EXTRA_KEYS.forEach(key => {
     if (key in overrideFormData) {
-      overriddenFormData[key] = overrideFormData[key];
-    }
-  });
-  return overriddenFormData;
-}
-
-export function appendExtraFormData(
-  queryObject: QueryObject,
-  appendFormData: Partial<QueryObject>,
-): QueryObject {
-  const appendedFormData = { ...queryObject };
-  ALLOWED_APPENDS.forEach(key => {
-    if (key in appendFormData) {
-      const append = appendFormData[key];
-      const currentValue = appendedFormData[key] || [];
       // @ts-ignore
-      currentValue.push(...append);
-      appendedFormData[key] = currentValue;
+      overriddenExtras[key] = overrideFormData[key];
     }
   });
-
-  // Add freeform where
-  const { extras = {} } = appendedFormData;
-  const { where = '' } = extras;
-  extras.where = where;
-
-  const { extras: appendExtras = {} } = appendFormData;
-  let { where: appendWhere } = appendExtras;
-
-  if (appendWhere) {
-    appendedFormData.extras = extras;
-    appendWhere = `(${appendWhere})`;
+  if (Object.keys(overriddenExtras).length > 0) {
+    overriddenFormData.extras = overriddenExtras;
   }
-  if (where) {
-    appendWhere = `(${where}) AND ${appendWhere}`;
-  }
-  extras.where = appendWhere;
-
-  return appendedFormData;
+  return overriddenFormData;
 }

@@ -18,29 +18,24 @@
  */
 import * as color from 'd3-color';
 import {
-  TimeGranularity,
+  extractTimegrain,
   getTimeFormatterForGranularity,
   getNumberFormatter,
   NumberFormats,
   ChartProps,
+  LegacyQueryData,
+  QueryFormData,
 } from '@superset-ui/core';
 
 const TIME_COLUMN = '__timestamp';
 const formatPercentChange = getNumberFormatter(NumberFormats.PERCENT_SIGNED_1_POINT);
-
-export interface DatasourceMetric {
-  label: string;
-  // eslint-disable-next-line camelcase
-  metric_name?: string;
-  d3format?: string;
-}
 
 // we trust both the x (time) and y (big number) to be numeric
 export interface BigNumberDatum {
   [key: string]: number | null;
 }
 
-export type BigNumberFormData = {
+export type BigNumberFormData = QueryFormData & {
   colorPicker?: {
     r: number;
     g: number;
@@ -53,18 +48,17 @@ export type BigNumberFormData = {
     | string;
   compareLag?: string | number;
   yAxisFormat?: string;
-  timeGrainSqla?: TimeGranularity;
 };
 
-export type BignumberChartProps = ChartProps & {
+export type BigNumberChartProps = ChartProps & {
   formData: BigNumberFormData;
-  queryData: ChartProps['queryData'] & {
+  queriesData: (LegacyQueryData & {
     data?: BigNumberDatum[];
-  };
+  })[];
 };
 
-export default function transformProps(chartProps: BignumberChartProps) {
-  const { width, height, queryData, formData } = chartProps;
+export default function transformProps(chartProps: BigNumberChartProps) {
+  const { width, height, queriesData, formData, rawFormData } = chartProps;
   const {
     colorPicker,
     compareLag: compareLag_,
@@ -75,12 +69,12 @@ export default function transformProps(chartProps: BignumberChartProps) {
     startYAxisAtZero,
     subheader = '',
     subheaderFontSize,
-    timeGrainSqla: granularity,
     vizType,
     timeRangeFixed = false,
   } = formData;
+  const granularity = extractTimegrain(rawFormData as QueryFormData);
   let { yAxisFormat } = formData;
-  const { data = [], from_dttm: fromDatetime, to_dttm: toDatetime } = queryData;
+  const { data = [], from_dttm: fromDatetime, to_dttm: toDatetime } = queriesData[0];
   const metricName = typeof metric === 'string' ? metric : metric.label;
   const compareLag = Number(compareLag_) || 0;
   const supportTrendLine = vizType === 'big_number';
@@ -137,7 +131,7 @@ export default function transformProps(chartProps: BignumberChartProps) {
   }
 
   if (!yAxisFormat && chartProps.datasource && chartProps.datasource.metrics) {
-    chartProps.datasource.metrics.forEach((metricEntry: DatasourceMetric) => {
+    chartProps.datasource.metrics.forEach(metricEntry => {
       if (metricEntry.metric_name === metric && metricEntry.d3format) {
         yAxisFormat = metricEntry.d3format;
       }

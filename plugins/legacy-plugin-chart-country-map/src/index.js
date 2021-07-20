@@ -22,9 +22,13 @@ import thumbnail from './images/thumbnail.png';
 import controlPanel from './controlPanel';
 
 const metadata = new ChartMetadata({
+  category: t('Map'),
   credits: ['https://bl.ocks.org/john-guerra'],
-  description: '',
+  description: t(
+    "Visualizes how a single metric varies across a country's principal subdivisions (states, provinces, etc) on a chloropleth map. Each subdivision's value is elevated when you hover over the corresponding geographic boundary.",
+  ),
   name: t('Country Map'),
+  tags: [t('2D'), t('Comparison'), t('Geo'), t('Range'), t('Report')],
   thumbnail,
   useLegacyApi: true,
 });

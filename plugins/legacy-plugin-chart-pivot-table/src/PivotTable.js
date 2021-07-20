@@ -20,11 +20,11 @@
 import dt from 'datatables.net-bs';
 import PropTypes from 'prop-types';
 import {
-  formatNumber,
   getTimeFormatter,
   getTimeFormatterForGranularity,
   smartDateFormatter,
 } from '@superset-ui/core';
+import { formatCellValue, formatDateCellValue } from './utils/formatCells';
 import fixTableHeight from './utils/fixTableHeight';
 import 'datatables.net-bs/css/dataTables.bootstrap.css';
 
@@ -47,6 +47,9 @@ const propTypes = {
   numGroups: PropTypes.number,
   verboseMap: PropTypes.objectOf(PropTypes.string),
 };
+
+const hasOnlyTextChild = node =>
+  node.childNodes.length === 1 && node.childNodes[0].nodeType === Node.TEXT_NODE;
 
 function PivotTable(element, props) {
   const {
@@ -77,48 +80,32 @@ function PivotTable(element, props) {
   container.innerHTML = html;
 
   const cols = Array.isArray(columns[0]) ? columns.map(col => col[0]) : columns;
-  // regex to parse dates
   const dateRegex = /^__timestamp:(-?\d*\.?\d*)$/;
 
-  // jQuery hack to set verbose names in headers
-  // eslint-disable-next-line func-name-matching
-  const replaceCell = function replace() {
-    const s = $(this)[0].textContent;
-    const regexMatch = dateRegex.exec(s);
-    let cellValue;
-    if (regexMatch) {
-      const date = new Date(parseFloat(regexMatch[1]));
-      cellValue = dateFormatter(date);
-    } else {
-      cellValue = verboseMap[s] || s;
+  $container.find('th').each(function formatTh() {
+    if (hasOnlyTextChild(this)) {
+      const cellValue = formatDateCellValue($(this).text(), verboseMap, dateRegex, dateFormatter);
+      $(this).text(cellValue);
     }
-    $(this)[0].textContent = cellValue;
-  };
-  $container.find('thead tr th').each(replaceCell);
-  $container.find('tbody tr th').each(replaceCell);
+  });
 
-  // jQuery hack to format number
   $container.find('tbody tr').each(function eachRow() {
     $(this)
       .find('td')
-      .each(function each(i) {
-        const metric = cols[i];
-        const format = columnFormats[metric] || numberFormat || '.3s';
-        const tdText = $(this)[0].textContent;
-        const parsedValue = parseFloat(tdText);
-        if (Number.isNaN(parsedValue)) {
-          const regexMatch = dateRegex.exec(tdText);
-          if (regexMatch) {
-            const date = new Date(parseFloat(regexMatch[1]));
-            $(this)[0].textContent = dateFormatter(date);
-            $(this).attr('data-sort', date);
-          } else {
-            $(this)[0].textContent = '';
-            $(this).attr('data-sort', Number.NEGATIVE_INFINITY);
-          }
-        } else {
-          $(this)[0].textContent = formatNumber(format, parsedValue);
-          $(this).attr('data-sort', parsedValue);
+      .each(function eachTd(index) {
+        if (hasOnlyTextChild(this)) {
+          const tdText = $(this).text();
+          const { textContent, sortAttributeValue } = formatCellValue(
+            index,
+            cols,
+            tdText,
+            columnFormats,
+            numberFormat,
+            dateRegex,
+            dateFormatter,
+          );
+          $(this).text(textContent);
+          $(this).attr('data-sort', sortAttributeValue);
         }
       });
   });

@@ -6,7 +6,7 @@ import { QueryData } from '../types/QueryResponse';
 
 interface Payload {
   formData: Partial<QueryFormData>;
-  queryData: QueryData;
+  queriesData: QueryData[];
   datasource?: Datasource;
 }
 
@@ -16,7 +16,7 @@ export interface ProvidedProps {
   loading?: boolean;
 }
 
-export type Props =
+export type ChartDataProviderProps =
   /** User can pass either one or both of sliceId or formData */
   SliceIdAndOrFormData & {
     /** Child function called with ProvidedProps */
@@ -33,23 +33,25 @@ export type Props =
     formDataRequestOptions?: Partial<RequestConfig>;
     /** Hook to override the datasource request config. */
     datasourceRequestOptions?: Partial<RequestConfig>;
-    /** Hook to override the queryData request config. */
+    /** Hook to override the queriesData request config. */
     queryRequestOptions?: Partial<RequestConfig>;
   };
 
-type State = {
+export type ChartDataProviderState = {
   status: 'uninitialized' | 'loading' | 'error' | 'loaded';
   payload?: ProvidedProps['payload'];
   error?: ProvidedProps['error'];
 };
 
-class ChartDataProvider extends React.PureComponent<Props, State> {
+class ChartDataProvider extends React.PureComponent<
+  ChartDataProviderProps,
+  ChartDataProviderState
+> {
   readonly chartClient: ChartClient;
 
-  state: State = { status: 'uninitialized' };
-
-  constructor(props: Props) {
+  constructor(props: ChartDataProviderProps) {
     super(props);
+    this.state = { status: 'uninitialized' };
     this.chartClient = new ChartClient({ client: props.client });
   }
 
@@ -57,7 +59,7 @@ class ChartDataProvider extends React.PureComponent<Props, State> {
     this.handleFetchData();
   }
 
-  componentDidUpdate(prevProps: Props) {
+  componentDidUpdate(prevProps: ChartDataProviderProps) {
     const { formData, sliceId } = this.props;
     if (formData !== prevProps.formData || sliceId !== prevProps.sliceId) {
       this.handleFetchData();
@@ -66,8 +68,7 @@ class ChartDataProvider extends React.PureComponent<Props, State> {
 
   private extractSliceIdAndFormData() {
     const { formData, sliceId } = this.props;
-
-    return formData ? { formData } : { sliceId: sliceId! };
+    return formData ? { formData } : { sliceId: sliceId as number };
   }
 
   private handleFetchData = () => {
@@ -89,12 +90,12 @@ class ChartDataProvider extends React.PureComponent<Props, State> {
                 : Promise.resolve(undefined),
               this.chartClient.loadQueryData(formData, queryRequestOptions),
             ]).then(
-              ([datasource, queryData]) =>
+              ([datasource, queriesData]) =>
                 // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
                 ({
                   datasource,
                   formData,
-                  queryData,
+                  queriesData,
                 } as Payload),
             ),
           )

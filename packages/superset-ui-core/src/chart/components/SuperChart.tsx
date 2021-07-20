@@ -12,6 +12,7 @@ const defaultProps = {
   FallbackComponent: DefaultFallbackComponent,
   height: 400 as string | number,
   width: '100%' as string | number,
+  enableNoResults: true,
 };
 
 export type FallbackPropsWithDimension = FallbackProps & Partial<Dimension>;
@@ -30,6 +31,8 @@ export type Props = Omit<SuperChartCoreProps, 'chartProps'> &
     disableErrorBoundary?: boolean;
     /** debounceTime to check for container resize */
     debounceTime?: number;
+    /** enable "No Results" message if empty result set */
+    enableNoResults?: boolean;
     /** Component to render when there are unexpected errors */
     FallbackComponent?: React.ComponentType<FallbackPropsWithDimension>;
     /** Event listener for unexpected errors from chart */
@@ -111,14 +114,13 @@ export default class SuperChart extends React.PureComponent<Props, {}> {
       FallbackComponent,
       onErrorBoundary,
       Wrapper,
-      queryData,
       queriesData,
+      enableNoResults,
       ...rest
     } = this.props as PropsWithDefault;
 
     const chartProps = this.createChartProps({
       ...rest,
-      queryData,
       queriesData,
       height,
       width,
@@ -126,14 +128,11 @@ export default class SuperChart extends React.PureComponent<Props, {}> {
 
     let chart;
     // Render the no results component if the query data is null or empty
-    const noResultQuery =
-      !queryData ||
-      !queryData.data ||
-      (Array.isArray(queryData.data) && queryData.data.length === 0);
     const noResultQueries =
-      !queriesData ||
-      queriesData.every(({ data }) => !data || (Array.isArray(data) && data.length === 0));
-    if (noResultQuery && noResultQueries) {
+      enableNoResults &&
+      (!queriesData ||
+        queriesData.every(({ data }) => !data || (Array.isArray(data) && data.length === 0)));
+    if (noResultQueries) {
       chart = <NoResultsComponent id={id} className={className} height={height} width={width} />;
     } else {
       const chartWithoutWrapper = (
@@ -186,8 +185,6 @@ export default class SuperChart extends React.PureComponent<Props, {}> {
         <BoundingBox>
           <ParentSize debounceTime={debounceTime}>
             {({ width, height }) =>
-              width > 0 &&
-              height > 0 &&
               this.renderChart(
                 widthInfo.isDynamic ? Math.floor(width) : widthInfo.value,
                 heightInfo.isDynamic ? Math.floor(height) : heightInfo.value,

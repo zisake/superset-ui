@@ -17,7 +17,7 @@
  * under the License.
  */
 import { t, validateNonEmpty } from '@superset-ui/core';
-import { ControlPanelConfig } from '@superset-ui/chart-controls';
+import { ControlPanelConfig, sections, sharedControls } from '@superset-ui/chart-controls';
 
 const config: ControlPanelConfig = {
   /**
@@ -41,10 +41,9 @@ const config: ControlPanelConfig = {
    * If a control panel has both a `series` and `groupby` control, and
    * the user has chosen `col1` as the value for the `series` control,
    * and `col2` and `col3` as values for the `groupby` control,
-   * the resulting query will contain three groupby columns. This is due
-   * to the `series` control having the property `queryField` set to
-   * `groupby`, which automatically appends the values from the
-   * `series` control to the `groupby` control when the query is generated.
+   * the resulting query will contain three `groupby` columns. This is because
+   * we considered `series` control a `groupby` query field and its value
+   * will automatically append the `groupby` field when the query is generated.
    *
    * It is also possible to define custom controls by importing the
    * necessary dependencies and overriding the default parameters, which
@@ -97,10 +96,40 @@ const config: ControlPanelConfig = {
 
   // For control input types, see: superset-frontend/src/explore/components/controls/index.js
   controlPanelSections: [
+    <%if (chartType === 'timeseries') { %>sections.legacyTimeseriesTime,<% } else { %>sections.legacyRegularTime,<% } %>
     {
       label: t('Query'),
       expanded: true,
-      controlSetRows: [['groupby'], ['metrics'], ['adhoc_filters'], ['row_limit', null]],
+      controlSetRows: [
+        [
+          {
+            name: 'cols',
+            config: {
+              ...sharedControls.groupby,
+              label: t('Columns'),
+              description: t('Columns to group by'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'metrics',
+            config: {
+              ...sharedControls.metrics,
+              // it's possible to add validators to controls if
+              // certain selections/types need to be enforced
+              validators: [validateNonEmpty],
+            },
+          },
+        ],
+        ['adhoc_filters'],
+        [
+          {
+            name: 'row_limit',
+            config: sharedControls.row_limit,
+          },
+        ],
+      ],
     },
     {
       label: t('Hello Controls!'),
@@ -156,25 +185,6 @@ const config: ControlPanelConfig = {
       ],
     },
   ],
-<%if (chartType === 'timeseries') { %>  // Time series charts need to override the `druidTimeSeries` and `sqlaTimeSeries`
-  // sections to add the time grain dropdown.
-  sectionOverrides: {
-    druidTimeSeries: {
-      controlSetRows: [['granularity', 'druid_time_origin'], ['time_range']],
-    },
-    sqlaTimeSeries: {
-      controlSetRows: [['granularity_sqla', 'time_grain_sqla'], ['time_range']],
-    },
-  },<% } %>
-  controlOverrides: {
-    series: {
-      validators: [validateNonEmpty],
-      clearable: false,
-    },
-    row_limit: {
-      default: 100,
-    },
-  },
 };
 
 export default config;

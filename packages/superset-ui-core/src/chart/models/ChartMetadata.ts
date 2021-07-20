@@ -1,5 +1,12 @@
+import { Behavior } from '../types/Base';
+
 interface LookupTable {
   [key: string]: boolean;
+}
+
+export interface ExampleImage {
+  url: string;
+  caption?: string;
 }
 
 export interface ChartMetadataConfig {
@@ -7,11 +14,17 @@ export interface ChartMetadataConfig {
   canBeAnnotationTypes?: string[];
   credits?: string[];
   description?: string;
+  datasourceCount?: number;
+  enableNoResults?: boolean;
   show?: boolean;
   supportedAnnotationTypes?: string[];
   thumbnail: string;
   useLegacyApi?: boolean;
-  isNativeFilter?: boolean;
+  behaviors?: Behavior[];
+  deprecated?: boolean;
+  exampleGallery?: ExampleImage[];
+  tags?: string[];
+  category?: string | null;
 }
 
 export default class ChartMetadata {
@@ -33,7 +46,19 @@ export default class ChartMetadata {
 
   useLegacyApi: boolean;
 
-  isNativeFilter: boolean;
+  behaviors: Behavior[];
+
+  datasourceCount: number;
+
+  enableNoResults: boolean;
+
+  deprecated: boolean;
+
+  exampleGallery: ExampleImage[];
+
+  tags: string[];
+
+  category: string | null;
 
   constructor(config: ChartMetadataConfig) {
     const {
@@ -45,7 +70,13 @@ export default class ChartMetadata {
       supportedAnnotationTypes = [],
       thumbnail,
       useLegacyApi = false,
-      isNativeFilter = false,
+      behaviors = [],
+      datasourceCount = 1,
+      enableNoResults = true,
+      deprecated = false,
+      exampleGallery = [],
+      tags = [],
+      category = null,
     } = config;
 
     this.name = name;
@@ -65,7 +96,13 @@ export default class ChartMetadata {
     this.supportedAnnotationTypes = supportedAnnotationTypes;
     this.thumbnail = thumbnail;
     this.useLegacyApi = useLegacyApi;
-    this.isNativeFilter = isNativeFilter;
+    this.behaviors = behaviors;
+    this.datasourceCount = datasourceCount;
+    this.enableNoResults = enableNoResults;
+    this.deprecated = deprecated;
+    this.exampleGallery = exampleGallery;
+    this.tags = tags;
+    this.category = category;
   }
 
   canBeAnnotationType(type: string): boolean {
@@ -73,16 +110,6 @@ export default class ChartMetadata {
   }
 
   clone() {
-    return new ChartMetadata({
-      canBeAnnotationTypes: this.canBeAnnotationTypes,
-      credits: this.credits,
-      description: this.description,
-      name: this.name,
-      show: this.show,
-      supportedAnnotationTypes: this.supportedAnnotationTypes,
-      thumbnail: this.thumbnail,
-      useLegacyApi: this.useLegacyApi,
-      isNativeFilter: this.isNativeFilter,
-    });
+    return new ChartMetadata(this);
   }
 }

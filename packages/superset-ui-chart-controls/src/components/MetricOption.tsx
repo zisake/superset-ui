@@ -17,11 +17,11 @@
  * under the License.
  */
 import React from 'react';
-import { styled } from '@superset-ui/core';
+import { styled, Metric, SafeMarkdown } from '@superset-ui/core';
 import InfoTooltipWithTrigger from './InfoTooltipWithTrigger';
 import { ColumnTypeLabel } from './ColumnTypeLabel';
 import CertifiedIconWithTooltip from './CertifiedIconWithTooltip';
-import { Metric } from '../types';
+import Tooltip from './Tooltip';
 
 const FlexRowContainer = styled.div`
   align-items: center;
@@ -33,7 +33,7 @@ const FlexRowContainer = styled.div`
 `;
 
 export interface MetricOptionProps {
-  metric: Metric;
+  metric: Omit<Metric, 'id'> & { label?: string };
   openInNewWindow?: boolean;
   showFormula?: boolean;
   showType?: boolean;
@@ -49,12 +49,15 @@ export function MetricOption({
 }: MetricOptionProps) {
   const verbose = metric.verbose_name || metric.metric_name || metric.label;
   const link = url ? (
-    <a href={url} target={openInNewWindow ? '_blank' : ''}>
+    <a href={url} target={openInNewWindow ? '_blank' : ''} rel="noreferrer">
       {verbose}
     </a>
   ) : (
     verbose
   );
+
+  const warningMarkdown = metric.warning_markdown || metric.warning_text;
+
   return (
     <FlexRowContainer className="metric-option">
       {showType && <ColumnTypeLabel type="expression" />}
@@ -65,7 +68,9 @@ export function MetricOption({
           details={metric.certification_details}
         />
       )}
-      <span className="option-label">{link}</span>
+      <Tooltip id="metric-name-tooltip" title={verbose} trigger={['hover']} placement="top">
+        <span className="option-label">{link}</span>
+      </Tooltip>
       {metric.description && (
         <InfoTooltipWithTrigger
           className="text-muted"
@@ -82,11 +87,11 @@ export function MetricOption({
           label={`expr-${metric.metric_name}`}
         />
       )}
-      {metric.warning_text && (
+      {warningMarkdown && (
         <InfoTooltipWithTrigger
-          className="text-danger"
+          className="text-warning"
           icon="warning"
-          tooltip={metric.warning_text}
+          tooltip={<SafeMarkdown source={warningMarkdown} />}
           label={`warn-${metric.metric_name}`}
         />
       )}

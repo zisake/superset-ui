@@ -18,17 +18,35 @@
  */
 import { t, ChartMetadata, ChartPlugin } from '@superset-ui/core';
 import controlPanel from './controlPanel';
-import transformProps from './transformProps';
+import transformProps, { BigNumberChartProps, BigNumberFormData } from './transformProps';
+import example from './images/Big_Number_Trendline.jpg';
 import thumbnail from './images/thumbnail.png';
 
 const metadata = new ChartMetadata({
-  description: '',
+  category: t('KPI'),
+  description: t(
+    'Showcases a single number accompanied by a simple line chart, to call attention to an important metric along with its change over time or other dimension.',
+  ),
+  exampleGallery: [{ url: example }],
   name: t('Big Number with Trendline'),
+  tags: [
+    t('Advanced-Analytics'),
+    t('Formattable'),
+    t('Line'),
+    t('Percentages'),
+    t('Highly-used'),
+    t('Report'),
+    t('Text'),
+    t('Trend'),
+  ],
   thumbnail,
   useLegacyApi: true,
 });
 
-export default class BigNumberChartPlugin extends ChartPlugin {
+export default class BigNumberChartPlugin extends ChartPlugin<
+  BigNumberFormData,
+  BigNumberChartProps
+> {
   constructor() {
     super({
       loadChart: () => import('./BigNumber'),

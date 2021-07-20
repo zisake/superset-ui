@@ -26,7 +26,7 @@ import { LOGIN_GLOB } from '../fixtures/constants';
 
 describe('callApi()', () => {
   beforeAll(() => {
-    fetchMock.get(LOGIN_GLOB, { csrf_token: '1234' });
+    fetchMock.get(LOGIN_GLOB, { result: '1234' });
   });
 
   afterAll(fetchMock.restore);
@@ -295,19 +295,19 @@ describe('callApi()', () => {
   });
 
   describe('caching', () => {
-    const origLocation = self.location;
+    const origLocation = window.location;
 
     beforeAll(() => {
-      Object.defineProperty(self, 'location', { value: {} });
+      Object.defineProperty(window, 'location', { value: {} });
     });
 
     afterAll(() => {
-      Object.defineProperty(self, 'location', { value: origLocation });
+      Object.defineProperty(window, 'location', { value: origLocation });
     });
 
-    beforeEach(() => {
-      self.location.protocol = 'https:';
-      return caches.delete(constants.CACHE_KEY);
+    beforeEach(async () => {
+      window.location.protocol = 'https:';
+      await caches.delete(constants.CACHE_KEY);
     });
 
     it('caches requests with ETags', async () => {
@@ -322,7 +322,7 @@ describe('callApi()', () => {
 
     it('will not use cache when running off an insecure connection', async () => {
       expect.assertions(2);
-      self.location.protocol = 'http:';
+      window.location.protocol = 'http:';
 
       await callApi({ url: mockCacheUrl, method: 'GET' });
       const calls = fetchMock.calls(mockCacheUrl);
@@ -396,11 +396,14 @@ describe('callApi()', () => {
       // the cached response and sent the If-None-Match header
       const mockUncachedUrl = '/mock/uncached/url';
       const mockCachedPayload = { status: 304 };
+      let error;
       fetchMock.get(mockUncachedUrl, mockCachedPayload);
 
       try {
         await callApi({ url: mockUncachedUrl, method: 'GET' });
-      } catch (error) {
+      } catch (err) {
+        error = err;
+      } finally {
         const calls = fetchMock.calls(mockUncachedUrl);
         expect(calls).toHaveLength(1);
         expect((error as { message: string }).message).toEqual(
@@ -432,13 +435,16 @@ describe('callApi()', () => {
 
   it('rejects after retrying thrice if the request throws', async () => {
     expect.assertions(3);
+    let error;
     try {
       await callApi({
         fetchRetryOptions: DEFAULT_FETCH_RETRY_OPTIONS,
         url: mockErrorUrl,
         method: 'GET',
       });
-    } catch (error) {
+    } catch (err) {
+      error = err;
+    } finally {
       const err = error as { status: number; statusText: string };
       expect(fetchMock.calls(mockErrorUrl)).toHaveLength(4);
       expect(err.status).toBe(mockErrorPayload.status);
@@ -448,17 +454,19 @@ describe('callApi()', () => {
 
   it('rejects without retries if the config is set to 0 retries', async () => {
     expect.assertions(3);
+    let error;
     try {
       await callApi({
         fetchRetryOptions: { retries: 0 },
         url: mockErrorUrl,
         method: 'GET',
       });
-    } catch (error) {
-      const err = error as { status: number; statusText: string };
+    } catch (err) {
+      error = err as { status: number; statusText: string };
+    } finally {
       expect(fetchMock.calls(mockErrorUrl)).toHaveLength(1);
-      expect(err.status).toBe(mockErrorPayload.status);
-      expect(err.statusText).toBe(mockErrorPayload.statusText);
+      expect(error?.status).toBe(mockErrorPayload.status);
+      expect(error?.statusText).toBe(mockErrorPayload.statusText);
     }
   });
 
@@ -477,13 +485,16 @@ describe('callApi()', () => {
 
   it('invalid json for postPayload should thrown error', async () => {
     expect.assertions(2);
+    let error;
     try {
       await callApi({
         url: mockPostUrl,
         method: 'POST',
         postPayload: 'haha',
       });
-    } catch (error) {
+    } catch (err) {
+      error = err;
+    } finally {
       expect(error).toBeInstanceOf(Error);
       expect(error.message).toEqual('Invalid payload:\n\nhaha');
     }
@@ -529,6 +540,8 @@ describe('callApi()', () => {
   it('should throw when both payloads provided', async () => {
     expect.assertions(1);
     fetchMock.post('/post-both-payload', {});
+
+    let error;
     try {
       await callApi({
         url: '/post-both-payload',
@@ -536,7 +549,9 @@ describe('callApi()', () => {
         postPayload: { a: 1 },
         jsonPayload: '{}',
       });
-    } catch (error) {
+    } catch (err) {
+      error = err;
+    } finally {
       expect((error as Error).message).toContain('provide only one of jsonPayload or postPayload');
     }
   });

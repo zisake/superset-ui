@@ -17,7 +17,7 @@
  * under the License.
  */
 import { t } from '@superset-ui/core';
-import { sections } from '@superset-ui/chart-controls';
+import { ControlPanelConfig, sections } from '@superset-ui/chart-controls';
 import {
   xAxisLabel,
   yAxisLabel,
@@ -32,8 +32,9 @@ import {
   timeSeriesSection,
 } from '../NVD3Controls';
 
-export default {
+const config: ControlPanelConfig = {
   controlPanelSections: [
+    sections.legacyTimeseriesTime,
     timeSeriesSection[0],
     {
       label: t('Chart Options'),
@@ -61,12 +62,6 @@ export default {
     timeSeriesSection[1],
     sections.annotations,
   ],
-  sectionOverrides: {
-    druidTimeSeries: {
-      controlSetRows: [['granularity', 'druid_time_origin'], ['time_range']],
-    },
-    sqlaTimeSeries: {
-      controlSetRows: [['granularity_sqla', 'time_grain_sqla'], ['time_range']],
-    },
-  },
 };
+
+export default config;

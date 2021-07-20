@@ -18,15 +18,42 @@
  */
 import { t, ChartMetadata, ChartPlugin } from '@superset-ui/core';
 import transformProps from '../transformProps';
+import example1 from './images/example1.jpg';
+import example2 from './images/example2.jpg';
+import example3 from './images/example3.jpg';
+import example4 from './images/example4.jpg';
 import thumbnail from './images/thumbnail.png';
 import { ANNOTATION_TYPES } from '../vendor/superset/AnnotationTypes';
 import controlPanel from './controlPanel';
 
 const metadata = new ChartMetadata({
+  category: t('Evolution'),
   credits: ['http://nvd3.org'],
-  description: '',
+  description: t(
+    'A time series chart that visualizes how a related metric from multiple groups vary over time. Each group is visualized using a different color.',
+  ),
+  exampleGallery: [
+    { url: example1, caption: t('Stretched style') },
+    { url: example2, caption: t('Stacked style') },
+    { url: example3, caption: t('Video game consoles') },
+    { url: example4, caption: t('Vehicle Types') },
+  ],
   name: t('Area Chart'),
   supportedAnnotationTypes: [ANNOTATION_TYPES.INTERVAL, ANNOTATION_TYPES.EVENT],
+  tags: [
+    t('Aesthetic'),
+    t('Comparison'),
+    t('Continuous'),
+    t('Legacy'),
+    t('Line'),
+    t('Percentages'),
+    t('Proportional'),
+    t('Stacked'),
+    t('Time'),
+    t('Trend'),
+    t('nvd3'),
+    t('Highly-used'),
+  ],
   thumbnail,
   useLegacyApi: true,
 });

@@ -17,7 +17,7 @@
  * under the License.
  */
 import React from 'react';
-
+import { Tooltip } from './Tooltip';
 import { ColumnTypeLabel } from './ColumnTypeLabel';
 import InfoTooltipWithTrigger from './InfoTooltipWithTrigger';
 import { ColumnMeta } from '../types';
@@ -28,25 +28,28 @@ export type ColumnOptionProps = {
 };
 
 export function ColumnOption({ column, showType = false }: ColumnOptionProps) {
-  const hasExpression = column.expression && column.expression !== column.column_name;
-
-  let columnType = column.type;
-  if (column.is_dttm) {
-    columnType = 'time';
-  } else if (hasExpression) {
-    columnType = 'expression';
-  }
+  const { expression, column_name, type_generic } = column;
+  const hasExpression = expression && expression !== column_name;
+  const type = hasExpression ? 'expression' : type_generic;
 
   return (
     <span>
-      {showType && columnType && <ColumnTypeLabel type={columnType} />}
-      <span className="m-r-5 option-label">{column.verbose_name || column.column_name}</span>
+      {showType && type !== undefined && <ColumnTypeLabel type={type} />}
+      <Tooltip
+        id="metric-name-tooltip"
+        title={column.verbose_name || column.column_name}
+        trigger={['hover']}
+        placement="top"
+      >
+        <span className="m-r-5 option-label">{column.verbose_name || column.column_name}</span>
+      </Tooltip>
       {column.description && (
         <InfoTooltipWithTrigger
           className="m-r-5 text-muted"
           icon="info"
           tooltip={column.description}
           label={`descr-${column.column_name}`}
+          placement="top"
         />
       )}
       {hasExpression && (
@@ -55,6 +58,7 @@ export function ColumnOption({ column, showType = false }: ColumnOptionProps) {
           icon="question-circle-o"
           tooltip={column.expression}
           label={`expr-${column.column_name}`}
+          placement="top"
         />
       )}
     </span>

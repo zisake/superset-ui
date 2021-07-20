@@ -18,21 +18,11 @@
  * under the License.
  */
 import React, { ReactNode, ReactText, ReactElement } from 'react';
-import { QueryFormData, DatasourceType } from '@superset-ui/core';
+import { QueryFormData, DatasourceType, Metric, JsonValue, Column } from '@superset-ui/core';
 import sharedControls from './shared-controls';
 import sharedControlComponents from './shared-controls/components';
 
-export type Metric = {
-  metric_name: string;
-  verbose_name?: string;
-  label?: string;
-  description?: string;
-  warning_text?: string;
-  expression?: string;
-  is_certified?: boolean;
-  certified_by?: string | null;
-  certification_details?: string | null;
-};
+export { Metric } from '@superset-ui/core';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyDict = Record<string, any>;
@@ -48,16 +38,9 @@ export type SharedControlComponents = typeof sharedControlComponents;
 /** ----------------------------------------------
  * Input data/props while rendering
  * ---------------------------------------------*/
-export interface ColumnMeta extends AnyDict {
-  column_name: string;
-  groupby?: string;
-  verbose_name?: string;
-  description?: string;
-  expression?: string;
-  is_dttm?: boolean;
-  type?: string;
-  filterable?: boolean;
-}
+export type ColumnMeta = Omit<Column, 'id'> & {
+  id?: number;
+} & AnyDict;
 
 export interface DatasourceMeta {
   id: number;
@@ -69,8 +52,8 @@ export interface DatasourceMeta {
   main_dttm_col: string;
   // eg. ['["ds", true]', 'ds [asc]']
   order_by_choices?: [string, string][] | null;
-  time_grain_sqla: [string, string][];
-  granularity_sqla: [string, string][];
+  time_grain_sqla?: string;
+  granularity_sqla?: string;
   datasource_name: string | null;
   description: string | null;
 }
@@ -99,7 +82,9 @@ export interface ControlPanelActionDispatchers {
 /**
  * Additional control props obtained from `mapStateToProps`.
  */
-export type ExtraControlProps = AnyDict;
+export type ExtraControlProps = {
+  value?: JsonValue;
+} & AnyDict;
 
 // Ref:superset-frontend/src/explore/store.js
 export type ControlState<T = ControlType, O extends SelectOption = SelectOption> = ControlConfig<
@@ -149,6 +134,9 @@ export type InternalControlType =
   | 'MetricsControl'
   | 'AdhocFilterControl'
   | 'FilterBoxItemControl'
+  | 'DndColumnSelect'
+  | 'DndFilterSelect'
+  | 'DndMetricSelect'
   | keyof SharedControlComponents; // expanded in `expandControlConfig`
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,7 +175,7 @@ export type TabOverride = 'data' | 'customize' | boolean;
 export interface BaseControlConfig<
   T extends ControlType = ControlType,
   O extends SelectOption = SelectOption,
-  V = unknown
+  V = JsonValue
 > extends AnyDict {
   type: T;
   label?: ReactNode;
@@ -197,8 +185,15 @@ export interface BaseControlConfig<
   validators?: ControlValueValidator<T, O, V>[];
   warning?: ReactNode;
   error?: ReactNode;
-  // override control panel state props
-  mapStateToProps?: (state: ControlPanelState, control: this) => ExtraControlProps;
+  /**
+   * Add additional props to chart control.
+   */
+  mapStateToProps?: (
+    state: ControlPanelState,
+    controlState: this & ExtraControlProps,
+    // TODO: add strict `chartState` typing (see superset-frontend/src/explore/types)
+    chartState?: AnyDict,
+  ) => ExtraControlProps;
   visibility?: (props: ControlPanelsContainerProps) => boolean;
 }
 
@@ -207,14 +202,15 @@ export interface ControlValueValidator<
   O extends SelectOption = SelectOption,
   V = unknown
 > {
-  (value: V, state: ControlState<T, O>): boolean | string;
+  (value: V, state?: ControlState<T, O>): boolean | string;
 }
 
 /** --------------------------------------------
  * Additional Config for specific control Types
  * --------------------------------------------- */
-type SelectOption = AnyDict | string | [ReactText, ReactNode];
-type SelectControlType =
+export type SelectOption = AnyDict | string | [ReactText, ReactNode];
+
+export type SelectControlType =
   | 'SelectControl'
   | 'SelectAsyncControl'
   | 'MetricsControl'
@@ -325,3 +321,41 @@ export type ControlOverrides = {
 export type SectionOverrides = {
   [P in SharedSectionAlias]?: Partial<ControlPanelSectionConfig>;
 };
+
+// Ref:
+//  - superset-frontend/src/explore/components/ConditionalFormattingControl.tsx
+export enum COMPARATOR {
+  GREATER_THAN = '>',
+  LESS_THAN = '<',
+  GREATER_OR_EQUAL = '≥',
+  LESS_OR_EQUAL = '≤',
+  EQUAL = '=',
+  NOT_EQUAL = '≠',
+  BETWEEN = '< x <',
+  BETWEEN_OR_EQUAL = '≤ x ≤',
+  BETWEEN_OR_LEFT_EQUAL = '≤ x <',
+  BETWEEN_OR_RIGHT_EQUAL = '< x ≤',
+}
+
+export const MULTIPLE_VALUE_COMPARATORS = [
+  COMPARATOR.BETWEEN,
+  COMPARATOR.BETWEEN_OR_EQUAL,
+  COMPARATOR.BETWEEN_OR_LEFT_EQUAL,
+  COMPARATOR.BETWEEN_OR_RIGHT_EQUAL,
+];
+
+export type ConditionalFormattingConfig = {
+  operator?: COMPARATOR;
+  targetValue?: number;
+  targetValueLeft?: number;
+  targetValueRight?: number;
+  column?: string;
+  colorScheme?: string;
+};
+
+export type ColorFormatters = {
+  column: string;
+  getColorFromValue: (value: number) => string | undefined;
+}[];
+
+export default {};

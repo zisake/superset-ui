@@ -1,4 +1,4 @@
-import { ChartProps } from '@superset-ui/core/src';
+import { Behavior, ChartProps } from '@superset-ui/core/src';
 
 const RAW_FORM_DATA = {
   some_field: 1,
@@ -9,6 +9,8 @@ const RAW_DATASOURCE = {
 };
 
 const QUERY_DATA = { data: {} };
+const QUERIES_DATA = [QUERY_DATA];
+const BEHAVIORS = [Behavior.NATIVE_FILTER, Behavior.INTERACTIVE_CHART];
 
 describe('ChartProps', () => {
   it('exists', () => {
@@ -20,7 +22,7 @@ describe('ChartProps', () => {
         width: 800,
         height: 600,
         formData: RAW_FORM_DATA,
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
       });
       expect(props).toBeInstanceOf(ChartProps);
     });
@@ -30,7 +32,7 @@ describe('ChartProps', () => {
         height: 600,
         datasource: RAW_DATASOURCE,
         formData: RAW_FORM_DATA,
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
       });
       expect(props.formData.someField as number).toEqual(1);
       expect(props.datasource.columnFormats).toEqual(RAW_DATASOURCE.column_formats);
@@ -49,16 +51,46 @@ describe('ChartProps', () => {
         height: 600,
         datasource: RAW_DATASOURCE,
         formData: RAW_FORM_DATA,
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
+        behaviors: BEHAVIORS,
+        isRefreshing: false,
       });
       const props2 = selector({
         width: 800,
         height: 600,
         datasource: RAW_DATASOURCE,
         formData: RAW_FORM_DATA,
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
+        behaviors: BEHAVIORS,
+        isRefreshing: false,
       });
       expect(props1).toBe(props2);
+    });
+    it('selector returns a new chartProps if the 13th field changes', () => {
+      /** this test is here to test for selectors that exceed 12 arguments (
+       * isRefreshing is the 13th argument, which is missing TS declarations).
+       * See: https://github.com/reduxjs/reselect/issues/378
+       */
+
+      const props1 = selector({
+        width: 800,
+        height: 600,
+        datasource: RAW_DATASOURCE,
+        formData: RAW_FORM_DATA,
+        queriesData: QUERIES_DATA,
+        behaviors: BEHAVIORS,
+        isRefreshing: false,
+      });
+      const props2 = selector({
+        width: 800,
+        height: 600,
+        datasource: RAW_DATASOURCE,
+        formData: RAW_FORM_DATA,
+        queriesData: QUERIES_DATA,
+        behaviors: BEHAVIORS,
+        isRefreshing: true,
+      });
+      expect(props1).not.toBe(props2);
     });
     it('selector returns a new chartProps if some input fields change', () => {
       const props1 = selector({
@@ -66,21 +98,21 @@ describe('ChartProps', () => {
         height: 600,
         datasource: RAW_DATASOURCE,
         formData: RAW_FORM_DATA,
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
       });
       const props2 = selector({
         width: 800,
         height: 600,
         datasource: RAW_DATASOURCE,
         formData: { new_field: 3 },
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
       });
       const props3 = selector({
         width: 800,
         height: 600,
         datasource: RAW_DATASOURCE,
         formData: RAW_FORM_DATA,
-        queryData: QUERY_DATA,
+        queriesData: QUERIES_DATA,
       });
       expect(props1).not.toBe(props2);
       expect(props1).not.toBe(props3);

@@ -1,9 +1,16 @@
 import { addParameters, addDecorator } from '@storybook/react';
 import { jsxDecorator } from 'storybook-addon-jsx';
 import categoricalD3 from '@superset-ui/core/lib/color/colorSchemes/categorical/d3';
+import categoricalSuperset from '@superset-ui/core/lib/color/colorSchemes/categorical/superset';
 import sequentialCommon from '@superset-ui/core/lib/color/colorSchemes/sequential/common';
 import sequentialD3 from '@superset-ui/core/lib/color/colorSchemes/sequential/d3';
-import { configure, getTimeFormatterRegistry, smartDateFormatter, getCategoricalSchemeRegistry, getSequentialSchemeRegistry } from '@superset-ui/core';
+import {
+  configure,
+  getTimeFormatterRegistry,
+  smartDateFormatter,
+  getCategoricalSchemeRegistry,
+  getSequentialSchemeRegistry,
+} from '@superset-ui/core';
 import { configureEncodable } from '@superset-ui/preset-chart-xy';
 import themeDecorator from './themeDecorator';
 
@@ -49,7 +56,7 @@ configure();
 
 // Register color schemes
 const categoricalSchemeRegistry = getCategoricalSchemeRegistry();
-[categoricalD3].forEach(group => {
+[categoricalD3, categoricalSuperset].forEach(group => {
   group.forEach(scheme => {
     categoricalSchemeRegistry.registerValue(scheme.id, scheme);
   });

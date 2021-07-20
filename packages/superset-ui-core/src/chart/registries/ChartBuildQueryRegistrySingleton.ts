@@ -1,7 +1,26 @@
-import { Registry, makeSingleton, OverwritePolicy, QueryContext } from '../..';
+import {
+  Registry,
+  makeSingleton,
+  OverwritePolicy,
+  QueryContext,
+  SetDataMaskHook,
+  JsonObject,
+} from '../..';
 
 // Ideally this would be <T extends QueryFormData>
-type BuildQuery = (formData: any) => QueryContext;
+export type BuildQuery<T = any> = (
+  formData: T,
+  options?: {
+    extras?: {
+      cachedChanges?: any;
+    };
+    ownState?: JsonObject;
+    hooks?: {
+      setDataMask: SetDataMaskHook;
+      setCachedChanges: (newChanges: any) => void;
+    };
+  },
+) => QueryContext;
 
 class ChartBuildQueryRegistry extends Registry<BuildQuery> {
   constructor() {

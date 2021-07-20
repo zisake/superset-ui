@@ -5,13 +5,13 @@ import { isSimpleAdhocFilter } from './types/Filter';
 import convertFilter from './convertFilter';
 
 /** Logic formerly in viz.py's process_query_filters */
-export default function processFilters(formData: QueryFormData): Partial<QueryFormData> {
+export default function processFilters(formData: Partial<QueryFormData>): Partial<QueryFormData> {
   // Split adhoc_filters into four fields according to
   // (1) clause (WHERE or HAVING)
   // (2) expressionType
   //     2.1 SIMPLE (subject + operator + comparator)
   //     2.2 SQL (freeform SQL expression))
-  const { adhoc_filters = [], extras = {}, filters = [], where } = formData;
+  const { adhoc_filters, extras = {}, filters = [], where } = formData;
   const simpleWhere: QueryObjectFilterClause[] = filters;
 
   const simpleHaving: QueryObjectFilterClause[] = [];
@@ -19,7 +19,7 @@ export default function processFilters(formData: QueryFormData): Partial<QueryFo
   if (where) freeformWhere.push(where);
   const freeformHaving: string[] = [];
 
-  adhoc_filters.forEach(filter => {
+  (adhoc_filters || []).forEach(filter => {
     const { clause } = filter;
     if (isSimpleAdhocFilter(filter)) {
       const filterClause = convertFilter(filter);

@@ -23,13 +23,11 @@ import SanKey from './Sankey';
 
 const ReactSanKey = reactify(SanKey);
 
-const SankeyComponent = ({ className, ...otherProps }) => {
-  return (
-    <div className={className}>
-      <ReactSanKey {...otherProps} />
-    </div>
-  );
-};
+const SankeyComponent = ({ className, ...otherProps }) => (
+  <div className={className}>
+    <ReactSanKey {...otherProps} />
+  </div>
+);
 
 SankeyComponent.propTypes = {
   className: PropTypes.string.isRequired,
@@ -46,6 +44,7 @@ export default styled(SankeyComponent)`
       text {
         pointer-events: none;
         text-shadow: 0 1px 0 #fff;
+        font-size: ${({ fontSize }) => fontSize}em;
       }
     }
     .link {
@@ -56,15 +55,18 @@ export default styled(SankeyComponent)`
         stroke-opacity: 0.5;
       }
     }
+    .opacity-0 {
+      opacity: 0;
+    }
   }
-  .superset-legacy-chart-sankey-tooltip {
+  .sankey-tooltip {
     position: absolute;
     width: auto;
     background: #ddd;
     padding: 10px;
-    font-size: ${({ theme }) => theme.typography.sizes.s};
+    font-size: ${({ fontSize }) => fontSize}em;
     font-weight: ${({ theme }) => theme.typography.weights.light};
-    color: #333;
+    color: #000;
     border: 1px solid #fff;
     text-align: center;
     pointer-events: none;

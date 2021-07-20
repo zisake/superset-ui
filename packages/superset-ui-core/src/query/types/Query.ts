@@ -1,10 +1,31 @@
 /* eslint camelcase: 0 */
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import { DatasourceType } from './Datasource';
-import { AdhocMetric } from './Metric';
 import { BinaryOperator, SetOperator, UnaryOperator } from './Operator';
-import { AppliedTimeExtras, TimeRange } from './Time';
+import { AppliedTimeExtras, TimeRange, TimeRangeEndpoints } from './Time';
 import { AnnotationLayer } from './AnnotationLayer';
-import { QueryFormDataMetric, QueryFormResidualDataValue } from './QueryFormData';
+import { QueryFields, QueryFormMetric } from './QueryFormData';
+import { Maybe } from '../../types';
+import { PostProcessingRule } from './PostProcessing';
+import { JsonObject } from '../../connection';
+import { TimeGranularity } from '../../time-format';
 
 export type QueryObjectFilterClause = {
   col: string;
@@ -22,12 +43,6 @@ export type QueryObjectFilterClause = {
     }
 );
 
-export type QueryObjectMetric = {
-  label: string;
-  metric_name?: string;
-  d3format?: string;
-} & Partial<AdhocMetric>;
-
 export type QueryObjectExtras = Partial<{
   /** HAVING condition for Druid */
   having_druid?: string;
@@ -36,8 +51,8 @@ export type QueryObjectExtras = Partial<{
   having?: string;
   relative_start?: string;
   relative_end?: string;
-  time_grain_sqla?: string;
-  time_range_endpoints?: string[];
+  time_grain_sqla?: TimeGranularity;
+  time_range_endpoints?: TimeRangeEndpoints;
   /** WHERE condition */
   where?: string;
 }>;
@@ -46,47 +61,80 @@ export type ResidualQueryObjectData = {
   [key: string]: unknown;
 };
 
-export type QueryObject = {
+/**
+ * Query object directly compatible with the new chart data API.
+ * A stricter version of query form data.
+ *
+ * All information should be related to generating database queries. Config values
+ * for client-side processing and chart rendering should happen in `buildQuery`
+ * and `transformProps`.
+ */
+export interface QueryObject extends QueryFields, TimeRange, ResidualQueryObjectData {
+  /**
+   * Definition for annotation layers.
+   */
   annotation_layers?: AnnotationLayer[];
+
   /** Time filters that have been applied to the query object */
   applied_time_extras?: AppliedTimeExtras;
-  /** Columns to group by */
-  groupby?: string[];
-  /** Metrics */
-  metrics?: QueryObjectMetric[];
 
+  /** add fetch value predicate to query if defined in datasource */
+  apply_fetch_values_predicate?: boolean;
+
+  /**
+   * Extra form data. Current stores information about time granularity, may be
+   * cleaned up in the future.
+   */
   extras?: QueryObjectExtras;
 
-  /** Granularity (for steps in time series) */
-  granularity?: string;
-
-  /** Free-form WHERE SQL: multiple clauses are concatenated by AND */
-  where?: string;
-  /** Free-form HAVING SQL, multiple clauses are concatenated by AND */
-  having?: string;
-  /** SIMPLE having filters */
-  having_filters?: QueryObjectFilterClause[];
   /** SIMPLE where filters */
   filters?: QueryObjectFilterClause[];
 
-  /** Maximum numbers of rows to return */
-  row_limit?: number;
-  /** Number of rows to skip */
-  row_offset?: number;
-  /** Maximum number of series */
-  timeseries_limit?: number;
-  /** The metric used to sort the returned result. */
-  timeseries_limit_metric?: QueryObjectMetric | null;
-
-  orderby?: Array<[QueryObjectMetric, boolean]>;
-  /** Direction to ordered by */
-  order_desc?: boolean;
+  /** Time column for SQL, time-grain for Druid (deprecated) */
+  granularity?: string;
 
   /** If set, will group by timestamp */
   is_timeseries?: boolean;
+
+  /** Should the rowcount of the query be fetched */
+  is_rowcount?: boolean;
+
+  /** Free-form HAVING SQL, multiple clauses are concatenated by AND */
+  having?: string;
+
+  /** SIMPLE having filters */
+  having_filters?: QueryObjectFilterClause[];
+
+  post_processing?: (PostProcessingRule | undefined)[];
+
+  /** Maximum numbers of rows to return */
+  row_limit?: number;
+
+  /** Number of rows to skip */
+  row_offset?: number;
+
+  /** The column to which direct temporal filters (forthcoming) */
+  time_column?: string;
+
+  /** The size of bucket by which to group timeseries data (forthcoming) */
+  time_grain?: string;
+
+  /** Maximum number of series */
+  timeseries_limit?: number;
+
+  /** The metric used to sort the returned result. */
+  timeseries_limit_metric?: Maybe<QueryFormMetric>;
+
+  /** Direction to ordered by */
+  order_desc?: boolean;
+
   url_params?: Record<string, string>;
-} & TimeRange &
-  ResidualQueryObjectData;
+
+  custom_params?: JsonObject;
+
+  /** Free-form WHERE SQL: multiple clauses are concatenated by AND */
+  where?: string;
+}
 
 export interface QueryContext {
   datasource: {
@@ -102,9 +150,4 @@ export interface QueryContext {
   queries: QueryObject[];
 }
 
-export type QueryFieldData = {
-  columns: QueryFormResidualDataValue[];
-  groupby: QueryFormResidualDataValue[];
-  metrics: QueryFormDataMetric[];
-  [key: string]: QueryFormResidualDataValue[];
-};
+export default {};

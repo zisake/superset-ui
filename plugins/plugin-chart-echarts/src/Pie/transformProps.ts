@@ -18,80 +18,158 @@
  */
 import {
   CategoricalColorNamespace,
-  ChartProps,
-  convertMetric,
-  DataRecord,
+  DataRecordValue,
+  getMetricLabel,
   getNumberFormatter,
+  getTimeFormatter,
   NumberFormats,
   NumberFormatter,
 } from '@superset-ui/core';
-import { EchartsPieLabelType, PieChartFormData } from './types';
-import { EchartsProps } from '../types';
-import { extractGroupbyLabel } from '../utils/series';
+import { CallbackDataParams } from 'echarts/types/src/util/types';
+import { EChartsOption, PieSeriesOption } from 'echarts';
+import {
+  DEFAULT_FORM_DATA as DEFAULT_PIE_FORM_DATA,
+  EchartsPieChartProps,
+  EchartsPieFormData,
+  EchartsPieLabelType,
+  PieChartTransformedProps,
+} from './types';
+import { DEFAULT_LEGEND_FORM_DATA } from '../types';
+import {
+  extractGroupbyLabel,
+  getChartPadding,
+  getColtypesMapping,
+  getLegendProps,
+  sanitizeHtml,
+} from '../utils/series';
 import { defaultGrid, defaultTooltip } from '../defaults';
+import { OpacityEnum } from '../constants';
 
 const percentFormatter = getNumberFormatter(NumberFormats.PERCENT_2_POINT);
 
 export function formatPieLabel({
   params,
-  pieLabelType,
+  labelType,
   numberFormatter,
 }: {
-  params: echarts.EChartOption.Tooltip.Format;
-  pieLabelType: EchartsPieLabelType;
+  params: CallbackDataParams;
+  labelType: EchartsPieLabelType;
   numberFormatter: NumberFormatter;
 }): string {
-  const { name = '', value, percent } = params;
+  const { name: rawName = '', value, percent } = params;
+  const name = sanitizeHtml(rawName);
   const formattedValue = numberFormatter(value as number);
   const formattedPercent = percentFormatter((percent as number) / 100);
-  if (pieLabelType === 'key') return name;
-  if (pieLabelType === 'value') return formattedValue;
-  if (pieLabelType === 'percent') return formattedPercent;
-  if (pieLabelType === 'key_value') return `${name}: ${formattedValue}`;
-  if (pieLabelType === 'key_value_percent')
-    return `${name}: ${formattedValue} (${formattedPercent})`;
-  if (pieLabelType === 'key_percent') return `${name}: ${formattedPercent}`;
-  return name;
+
+  switch (labelType) {
+    case EchartsPieLabelType.Key:
+      return name;
+    case EchartsPieLabelType.Value:
+      return formattedValue;
+    case EchartsPieLabelType.Percent:
+      return formattedPercent;
+    case EchartsPieLabelType.KeyValue:
+      return `${name}: ${formattedValue}`;
+    case EchartsPieLabelType.KeyValuePercent:
+      return `${name}: ${formattedValue} (${formattedPercent})`;
+    case EchartsPieLabelType.KeyPercent:
+      return `${name}: ${formattedPercent}`;
+    default:
+      return name;
+  }
 }
 
-export default function transformProps(chartProps: ChartProps): EchartsProps {
-  const { width, height, formData, queryData } = chartProps;
-  const data: DataRecord[] = queryData.data || [];
+export default function transformProps(chartProps: EchartsPieChartProps): PieChartTransformedProps {
+  const { formData, height, hooks, filterState, queriesData, width } = chartProps;
+  const { data = [] } = queriesData[0];
+  const coltypeMapping = getColtypesMapping(queriesData[0]);
 
   const {
     colorScheme,
-    donut = false,
+    donut,
     groupby,
-    innerRadius = 30,
-    labelsOutside = true,
-    labelLine = false,
-    metric,
+    innerRadius,
+    labelsOutside,
+    labelLine,
+    labelType,
+    legendMargin,
+    legendOrientation,
+    legendType,
+    metric = '',
     numberFormat,
-    outerRadius = 80,
-    pieLabelType = 'value',
-    showLabels = true,
-    showLegend = false,
-  } = formData as PieChartFormData;
-  const { label: metricLabel } = convertMetric(metric);
+    dateFormat,
+    outerRadius,
+    showLabels,
+    showLegend,
+    showLabelsThreshold,
+    emitFilter,
+  }: EchartsPieFormData = { ...DEFAULT_LEGEND_FORM_DATA, ...DEFAULT_PIE_FORM_DATA, ...formData };
+  const metricLabel = getMetricLabel(metric);
+  const minShowLabelAngle = (showLabelsThreshold || 0) * 3.6;
 
-  const keys = data.map(datum => extractGroupbyLabel({ datum, groupby }));
+  const keys = data.map(datum =>
+    extractGroupbyLabel({
+      datum,
+      groupby,
+      coltypeMapping,
+      timeFormatter: getTimeFormatter(dateFormat),
+    }),
+  );
+  const labelMap = data.reduce((acc: Record<string, DataRecordValue[]>, datum) => {
+    const label = extractGroupbyLabel({
+      datum,
+      groupby,
+      coltypeMapping,
+      timeFormatter: getTimeFormatter(dateFormat),
+    });
+    return {
+      ...acc,
+      [label]: groupby.map(col => datum[col]),
+    };
+  }, {});
+
+  const { setDataMask = () => {} } = hooks;
+
   const colorFn = CategoricalColorNamespace.getScale(colorScheme as string);
   const numberFormatter = getNumberFormatter(numberFormat);
 
-  const transformedData = data.map(datum => {
-    const name = extractGroupbyLabel({ datum, groupby });
+  const transformedData: PieSeriesOption[] = data.map(datum => {
+    const name = extractGroupbyLabel({
+      datum,
+      groupby,
+      coltypeMapping,
+      timeFormatter: getTimeFormatter(dateFormat),
+    });
+
+    const isFiltered = filterState.selectedValues && !filterState.selectedValues.includes(name);
+
     return {
       value: datum[metricLabel],
       name,
       itemStyle: {
         color: colorFn(name),
+        opacity: isFiltered ? OpacityEnum.Transparent : OpacityEnum.NonTransparent,
       },
     };
   });
 
-  const formatter = (params: { name: string; value: number; percent: number }) => {
-    return formatPieLabel({ params, numberFormatter, pieLabelType });
-  };
+  const selectedValues = (filterState.selectedValues || []).reduce(
+    (acc: Record<string, number>, selectedValue: string) => {
+      const index = transformedData.findIndex(({ name }) => name === selectedValue);
+      return {
+        ...acc,
+        [index]: selectedValue,
+      };
+    },
+    {},
+  );
+
+  const formatter = (params: CallbackDataParams) =>
+    formatPieLabel({
+      params,
+      numberFormatter,
+      labelType,
+    });
 
   const defaultLabel = {
     formatter,
@@ -99,66 +177,68 @@ export default function transformProps(chartProps: ChartProps): EchartsProps {
     color: '#000000',
   };
 
-  const echartOptions: echarts.EChartOption<echarts.EChartOption.SeriesPie> = {
+  const series: PieSeriesOption[] = [
+    {
+      type: 'pie',
+      ...getChartPadding(showLegend, legendOrientation, legendMargin),
+      animation: false,
+      radius: [`${donut ? innerRadius : 0}%`, `${outerRadius}%`],
+      center: ['50%', '50%'],
+      avoidLabelOverlap: true,
+      labelLine: labelsOutside && labelLine ? { show: true } : { show: false },
+      minShowLabelAngle,
+      label: labelsOutside
+        ? {
+            ...defaultLabel,
+            position: 'outer',
+            alignTo: 'none',
+            bleedMargin: 5,
+          }
+        : {
+            ...defaultLabel,
+            position: 'inner',
+          },
+      emphasis: {
+        label: {
+          show: true,
+          fontWeight: 'bold',
+          backgroundColor: 'white',
+        },
+      },
+      data: transformedData,
+    },
+  ];
+
+  const echartOptions: EChartsOption = {
     grid: {
       ...defaultGrid,
-      top: 30,
-      bottom: 30,
-      left: 30,
-      right: 30,
     },
     tooltip: {
       ...defaultTooltip,
       trigger: 'item',
-      formatter: params => {
-        return formatPieLabel({
-          params: params as echarts.EChartOption.Tooltip.Format,
+      formatter: (params: any) =>
+        formatPieLabel({
+          params,
           numberFormatter,
-          pieLabelType: 'key_value_percent',
-        });
-      },
+          labelType: EchartsPieLabelType.KeyValuePercent,
+        }),
     },
-    legend: showLegend
-      ? {
-          orient: 'horizontal',
-          left: 10,
-          data: keys,
-        }
-      : undefined,
-    series: [
-      {
-        type: 'pie',
-        animation: false,
-        radius: [`${donut ? innerRadius : 0}%`, `${outerRadius}%`],
-        center: ['50%', '50%'],
-        avoidLabelOverlap: true,
-        labelLine: labelsOutside && labelLine ? { show: true } : { show: false },
-        label: labelsOutside
-          ? {
-              ...defaultLabel,
-              position: 'outer',
-              alignTo: 'none',
-              bleedMargin: 5,
-            }
-          : {
-              ...defaultLabel,
-              position: 'inner',
-            },
-        emphasis: {
-          label: {
-            show: true,
-            fontWeight: 'bold',
-          },
-        },
-        // @ts-ignore
-        data: transformedData,
-      },
-    ],
+    legend: {
+      ...getLegendProps(legendType, legendOrientation, showLegend),
+      data: keys,
+    },
+    series,
   };
 
   return {
+    formData,
     width,
     height,
     echartOptions,
+    setDataMask,
+    emitFilter,
+    labelMap,
+    groupby,
+    selectedValues,
   };
 }

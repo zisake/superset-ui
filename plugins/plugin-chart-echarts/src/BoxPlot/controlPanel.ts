@@ -16,11 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { t } from '@superset-ui/core';
-import { D3_FORMAT_OPTIONS, formatSelectOptions } from '@superset-ui/chart-controls';
+import { FeatureFlag, isFeatureEnabled, t } from '@superset-ui/core';
+import {
+  D3_FORMAT_DOCS,
+  D3_FORMAT_OPTIONS,
+  D3_TIME_FORMAT_OPTIONS,
+  formatSelectOptions,
+  sections,
+} from '@superset-ui/chart-controls';
+import { DEFAULT_FORM_DATA } from '../Pie/types';
+
+const { emitFilter } = DEFAULT_FORM_DATA;
 
 export default {
   controlPanelSections: [
+    sections.legacyTimeseriesTime,
     {
       label: t('Query'),
       expanded: true,
@@ -55,6 +65,20 @@ export default {
       expanded: true,
       controlSetRows: [
         ['color_scheme'],
+        isFeatureEnabled(FeatureFlag.DASHBOARD_CROSS_FILTERS)
+          ? [
+              {
+                name: 'emit_filter',
+                config: {
+                  type: 'CheckboxControl',
+                  label: t('Enable emitting filters'),
+                  default: emitFilter,
+                  renderTrigger: true,
+                  description: t('Enable emmiting filters.'),
+                },
+              },
+            ]
+          : [],
         [
           {
             name: 'x_ticks_layout',
@@ -85,17 +109,23 @@ export default {
             },
           },
         ],
+        [
+          {
+            name: 'date_format',
+            config: {
+              type: 'SelectControl',
+              freeForm: true,
+              label: t('Date format'),
+              renderTrigger: true,
+              choices: D3_TIME_FORMAT_OPTIONS,
+              default: 'smart_date',
+              description: D3_FORMAT_DOCS,
+            },
+          },
+        ],
       ],
     },
   ],
-  sectionOverrides: {
-    druidTimeSeries: {
-      controlSetRows: [['granularity', 'druid_time_origin'], ['time_range']],
-    },
-    sqlaTimeSeries: {
-      controlSetRows: [['granularity_sqla', 'time_grain_sqla'], ['time_range']],
-    },
-  },
   controlOverrides: {
     groupby: {
       label: t('Series'),

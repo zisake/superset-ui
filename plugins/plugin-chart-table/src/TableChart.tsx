@@ -16,33 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React, { useState, useMemo, useCallback } from 'react';
-import { ColumnInstance, DefaultSortTypes, ColumnWithLooseAccessor } from 'react-table';
+import React, { CSSProperties, useCallback, useMemo } from 'react';
+import { ColumnInstance, ColumnWithLooseAccessor, DefaultSortTypes } from 'react-table';
 import { extent as d3Extent, max as d3Max } from 'd3-array';
-import { FaSort, FaSortUp as FaSortAsc, FaSortDown as FaSortDesc } from 'react-icons/fa';
-import { t, tn, DataRecordValue, DataRecord } from '@superset-ui/core';
+import { FaSort } from '@react-icons/all-files/fa/FaSort';
+import { FaSortDown as FaSortDesc } from '@react-icons/all-files/fa/FaSortDown';
+import { FaSortUp as FaSortAsc } from '@react-icons/all-files/fa/FaSortUp';
+import { DataRecord, DataRecordValue, GenericDataType, t, tn } from '@superset-ui/core';
 
-import { TableChartTransformedProps, DataType, DataColumnMeta } from './types';
+import { DataColumnMeta, TableChartTransformedProps } from './types';
 import DataTable, {
   DataTableProps,
   SearchInputProps,
   SelectPageSizeRendererProps,
   SizeOption,
 } from './DataTable';
+
 import Styles from './Styles';
-import formatValue from './utils/formatValue';
-import { PAGE_SIZE_OPTIONS } from './controlPanel';
+import { formatColumnValue } from './utils/formatValue';
+import { PAGE_SIZE_OPTIONS } from './consts';
+import { updateExternalFormData } from './DataTable/utils/externalAPIs';
 
 type ValueRange = [number, number];
 
 /**
  * Return sortType based on data type
  */
-function getSortTypeByDataType(dataType: DataType): DefaultSortTypes {
-  if (dataType === DataType.DateTime) {
+function getSortTypeByDataType(dataType: GenericDataType): DefaultSortTypes {
+  if (dataType === GenericDataType.TEMPORAL) {
     return 'datetime';
   }
-  if (dataType === DataType.String) {
+  if (dataType === GenericDataType.STRING) {
     return 'alphanumeric';
   }
   return 'basic';
@@ -145,29 +149,71 @@ export default function TableChart<D extends DataRecord = DataRecord>(
     height,
     width,
     data,
+    totals,
+    isRawRecords,
+    rowCount = 0,
     columns: columnsMeta,
-    alignPositiveNegative = false,
-    colorPositiveNegative = false,
+    alignPositiveNegative: defaultAlignPN = false,
+    colorPositiveNegative: defaultColorPN = false,
     includeSearch = false,
     pageSize = 0,
+    serverPagination = false,
+    serverPaginationData,
+    setDataMask,
     showCellBars = true,
     emitFilter = false,
     sortDesc = false,
-    onChangeFilter,
-    filters: initialFilters,
+    filters,
     sticky = true, // whether to use sticky header
+    columnColorFormatters,
   } = props;
 
-  const [filters, setFilters] = useState(initialFilters);
+  const handleChange = useCallback(
+    (filters: { [x: string]: DataRecordValue[] }) => {
+      if (!emitFilter) {
+        return;
+      }
 
-  // only take relevant page size options
-  const pageSizeOptions = useMemo(
-    () => PAGE_SIZE_OPTIONS.filter(([n, _]) => n <= 2 * data.length) as SizeOption[],
-    [data.length],
+      const groupBy = Object.keys(filters);
+      const groupByValues = Object.values(filters);
+      setDataMask({
+        extraFormData: {
+          filters:
+            groupBy.length === 0
+              ? []
+              : groupBy.map(col => {
+                  const val = filters?.[col];
+                  if (val === null || val === undefined)
+                    return {
+                      col,
+                      op: 'IS NULL',
+                    };
+                  return {
+                    col,
+                    op: 'IN',
+                    val: val as (string | number | boolean)[],
+                  };
+                }),
+        },
+        filterState: {
+          value: groupByValues.length ? groupByValues : null,
+          filters: filters && Object.keys(filters).length ? filters : null,
+        },
+      });
+    },
+    [emitFilter, setDataMask],
   );
 
+  // only take relevant page size options
+  const pageSizeOptions = useMemo(() => {
+    const getServerPagination = (n: number) => n <= rowCount;
+    return PAGE_SIZE_OPTIONS.filter(([n]) =>
+      serverPagination ? getServerPagination(n) : n <= 2 * data.length,
+    ) as SizeOption[];
+  }, [data.length, rowCount, serverPagination]);
+
   const getValueRange = useCallback(
-    function getValueRange(key: string) {
+    function getValueRange(key: string, alignPositiveNegative: boolean) {
       if (typeof data?.[0]?.[key] === 'number') {
         const nums = data.map(row => row[key]) as number[];
         return (alignPositiveNegative
@@ -176,7 +222,7 @@ export default function TableChart<D extends DataRecord = DataRecord>(
       }
       return null;
     },
-    [alignPositiveNegative, data],
+    [data],
   );
 
   const isActiveFilterValue = useCallback(
@@ -188,57 +234,108 @@ export default function TableChart<D extends DataRecord = DataRecord>(
 
   const toggleFilter = useCallback(
     function toggleFilter(key: string, val: DataRecordValue) {
-      const updatedFilters = { ...(filters || {}) };
+      let updatedFilters = { ...(filters || {}) };
       if (filters && isActiveFilterValue(key, val)) {
-        updatedFilters[key] = filters[key].filter((x: DataRecordValue) => x !== val);
+        updatedFilters = {};
       } else {
-        updatedFilters[key] = [...(filters?.[key] || []), val];
+        updatedFilters = {
+          [key]: [val],
+        };
       }
-      setFilters(updatedFilters);
-      if (onChangeFilter) {
-        onChangeFilter(updatedFilters);
+      if (Array.isArray(updatedFilters[key]) && updatedFilters[key].length === 0) {
+        delete updatedFilters[key];
       }
+      handleChange(updatedFilters);
     },
-    [filters, isActiveFilterValue, onChangeFilter],
+    [filters, handleChange, isActiveFilterValue],
   );
+
+  const getSharedStyle = (column: DataColumnMeta): CSSProperties => {
+    const { isNumeric, config = {} } = column;
+    const textAlign = config.horizontalAlign
+      ? config.horizontalAlign
+      : isNumeric
+      ? 'right'
+      : 'left';
+    return {
+      textAlign,
+    };
+  };
 
   const getColumnConfigs = useCallback(
     (column: DataColumnMeta, i: number): ColumnWithLooseAccessor<D> => {
-      const { key, label, dataType } = column;
+      const { key, label, isNumeric, dataType, isMetric, config = {} } = column;
+      const isFilter = !isNumeric && emitFilter;
+      const columnWidth = Number.isNaN(Number(config.columnWidth))
+        ? config.columnWidth
+        : Number(config.columnWidth);
+
+      // inline style for both th and td cell
+      const sharedStyle: CSSProperties = getSharedStyle(column);
+
+      const alignPositiveNegative =
+        config.alignPositiveNegative === undefined ? defaultAlignPN : config.alignPositiveNegative;
+      const colorPositiveNegative =
+        config.colorPositiveNegative === undefined ? defaultColorPN : config.colorPositiveNegative;
+
+      const hasColumnColorFormatters =
+        isNumeric && Array.isArray(columnColorFormatters) && columnColorFormatters.length > 0;
+
+      const valueRange =
+        !hasColumnColorFormatters &&
+        (config.showCellBars === undefined ? showCellBars : config.showCellBars) &&
+        (isMetric || isRawRecords) &&
+        getValueRange(key, alignPositiveNegative);
+
       let className = '';
-      if (dataType === DataType.Number) {
-        className += ' dt-metric';
-      } else if (emitFilter) {
+      if (isFilter) {
         className += ' dt-is-filter';
       }
-      const valueRange = showCellBars && getValueRange(key);
+
       return {
         id: String(i), // to allow duplicate column keys
         // must use custom accessor to allow `.` in column names
         // typing is incorrect in current version of `@types/react-table`
         // so we ask TS not to check.
         accessor: ((datum: D) => datum[key]) as never,
-        Cell: ({ column: col, value }: { column: ColumnInstance<D>; value: DataRecordValue }) => {
-          const [isHtml, text] = formatValue(column, value);
-          const style = {
-            background: valueRange
-              ? cellBar({
-                  value: value as number,
-                  valueRange,
-                  alignPositiveNegative,
-                  colorPositiveNegative,
-                })
-              : undefined,
-          };
+        Cell: ({ value }: { value: DataRecordValue }) => {
+          const [isHtml, text] = formatColumnValue(column, value);
           const html = isHtml ? { __html: text } : undefined;
+
+          let backgroundColor;
+          if (hasColumnColorFormatters) {
+            columnColorFormatters!
+              .filter(formatter => formatter.column === column.key)
+              .forEach(formatter => {
+                const formatterResult = formatter.getColorFromValue(value as number);
+                if (formatterResult) {
+                  backgroundColor = formatterResult;
+                }
+              });
+          }
+
           const cellProps = {
             // show raw number in title in case of numeric values
             title: typeof value === 'number' ? String(value) : undefined,
             onClick: emitFilter && !valueRange ? () => toggleFilter(key, value) : undefined,
-            className: `${className}${
-              isActiveFilterValue(key, value) ? ' dt-is-active-filter' : ''
-            }`,
-            style,
+            className: [
+              className,
+              value == null ? 'dt-is-null' : '',
+              isActiveFilterValue(key, value) ? ' dt-is-active-filter' : '',
+            ].join(' '),
+            style: {
+              ...sharedStyle,
+              background:
+                backgroundColor ||
+                (valueRange
+                  ? cellBar({
+                      value: value as number,
+                      valueRange,
+                      alignPositiveNegative,
+                      colorPositiveNegative,
+                    })
+                  : undefined),
+            },
           };
           if (html) {
             // eslint-disable-next-line react/no-danger
@@ -248,49 +345,78 @@ export default function TableChart<D extends DataRecord = DataRecord>(
           // render `Cell`. This saves some time for large tables.
           return <td {...cellProps}>{text}</td>;
         },
-        Header: ({ column: col, title, onClick, style }) => {
-          return (
-            <th
-              title={title}
-              className={col.isSorted ? `${className || ''} is-sorted` : className}
-              style={style}
-              onClick={onClick}
-            >
-              {label}
-              <SortIcon column={col} />
-            </th>
-          );
-        },
+        Header: ({ column: col, onClick, style }) => (
+          <th
+            title="Shift + Click to sort by multiple columns"
+            className={[className, col.isSorted ? 'is-sorted' : ''].join(' ')}
+            style={{
+              ...sharedStyle,
+              ...style,
+            }}
+            onClick={onClick}
+          >
+            {/* can't use `columnWidth &&` because it may also be zero */}
+            {config.columnWidth ? (
+              // column width hint
+              <div
+                style={{
+                  width: columnWidth,
+                  height: 0.01,
+                }}
+              />
+            ) : null}
+            {label}
+            <SortIcon column={col} />
+          </th>
+        ),
+        Footer: totals ? (
+          i === 0 ? (
+            <th>{t('Totals')}</th>
+          ) : (
+            <td style={sharedStyle}>
+              <strong>{formatColumnValue(column, totals[key])[1]}</strong>
+            </td>
+          )
+        ) : undefined,
         sortDescFirst: sortDesc,
         sortType: getSortTypeByDataType(dataType),
       };
     },
     [
-      alignPositiveNegative,
-      colorPositiveNegative,
+      defaultAlignPN,
+      defaultColorPN,
       emitFilter,
       getValueRange,
       isActiveFilterValue,
+      isRawRecords,
       showCellBars,
       sortDesc,
       toggleFilter,
+      totals,
+      columnColorFormatters,
     ],
   );
 
-  const columns = useMemo(() => {
-    return columnsMeta.map(getColumnConfigs);
-  }, [columnsMeta, getColumnConfigs]);
+  const columns = useMemo(() => columnsMeta.map(getColumnConfigs), [columnsMeta, getColumnConfigs]);
+
+  const handleServerPaginationChange = (pageNumber: number, pageSize: number) => {
+    updateExternalFormData(setDataMask, pageNumber, pageSize);
+  };
 
   return (
     <Styles>
       <DataTable<D>
         columns={columns}
         data={data}
+        rowCount={rowCount}
         tableClassName="table table-striped table-condensed"
         pageSize={pageSize}
+        serverPaginationData={serverPaginationData}
         pageSizeOptions={pageSizeOptions}
         width={width}
         height={height}
+        serverPagination={serverPagination}
+        onServerPaginationChange={handleServerPaginationChange}
         // 9 page items in > 340px works well even for 100+ pages
         maxPageItemCount={width > 340 ? 9 : 7}
         noResults={(filter: string) => t(filter ? 'No matching records found' : 'No records found')}

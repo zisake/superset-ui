@@ -33,20 +33,18 @@ function componentWillUnmount() {
 
 const ReactNVD3 = reactify(Component, { componentWillUnmount });
 
-const NVD3 = ({ className, ...otherProps }) => {
-  return (
-    <div className={className}>
-      <ReactNVD3 {...otherProps} />
-    </div>
-  );
-};
+const NVD3 = ({ className, ...otherProps }) => (
+  <div className={className}>
+    <ReactNVD3 {...otherProps} />
+  </div>
+);
 
 NVD3.propTypes = {
   className: PropTypes.string.isRequired,
 };
 
 export default styled(NVD3)`
-  .superset-legacy-chart-nvd3-dist-bar {
+  .superset-legacy-chart-nvd3-dist-bar, .superset-legacy-chart-nvd3-bar {
     overflow-x: auto !important;
     svg {
       &.nvd3-svg {

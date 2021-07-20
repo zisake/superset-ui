@@ -16,14 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { getLabelFontSize } from './utils';
+
 export default function transformProps(chartProps) {
-  const { width, height, formData, queryData } = chartProps;
+  const { width, height, formData, queriesData } = chartProps;
   const { colorScheme } = formData;
 
   return {
     width,
     height,
-    data: queryData.data,
+    data: queriesData[0].data,
     colorScheme,
+    fontSize: getLabelFontSize(width),
   };
 }

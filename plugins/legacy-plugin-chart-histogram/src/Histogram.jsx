@@ -23,7 +23,7 @@ import { Histogram, BarSeries, XAxis, YAxis } from '@data-ui/histogram';
 import { chartTheme } from '@data-ui/theme';
 import { LegendOrdinal } from '@vx/legend';
 import { scaleOrdinal } from '@vx/scale';
-import { CategoricalColorNamespace, styled } from '@superset-ui/core';
+import { CategoricalColorNamespace, styled, t } from '@superset-ui/core';
 import WithLegend from './WithLegend';
 
 const propTypes = {
@@ -42,6 +42,7 @@ const propTypes = {
   opacity: PropTypes.number,
   xAxisLabel: PropTypes.string,
   yAxisLabel: PropTypes.string,
+  showLegend: PropTypes.bool,
 };
 const defaultProps = {
   binCount: 15,
@@ -66,6 +67,7 @@ class CustomHistogram extends React.PureComponent {
       opacity,
       xAxisLabel,
       yAxisLabel,
+      showLegend,
     } = this.props;
 
     const colorFn = CategoricalColorNamespace.getScale(colorScheme);
@@ -81,14 +83,17 @@ class CustomHistogram extends React.PureComponent {
         width={width}
         height={height}
         position="top"
-        renderLegend={({ direction }) => (
-          <LegendOrdinal
-            scale={colorScale}
-            direction={direction}
-            shape="rect"
-            labelMargin="0 15px 0 0"
-          />
-        )}
+        renderLegend={({ direction, style }) =>
+          showLegend && (
+            <LegendOrdinal
+              style={style}
+              scale={colorScale}
+              direction={direction}
+              shape="rect"
+              labelMargin="0 15px 0 0"
+            />
+          )
+        }
         renderChart={parent => (
           <Histogram
             width={parent.width}
@@ -104,11 +109,11 @@ class CustomHistogram extends React.PureComponent {
                   {datum.bin0} to {datum.bin1}
                 </strong>
                 <div>
-                  <strong>count </strong>
+                  <strong>{t('count')} </strong>
                   {datum.count}
                 </div>
                 <div>
-                  <strong>cumulative </strong>
+                  <strong>{t('cumulative')} </strong>
                   {datum.cumulative}
                 </div>
               </div>

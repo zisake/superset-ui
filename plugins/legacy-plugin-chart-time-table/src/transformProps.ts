@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChartProps, DataRecord, QueryObjectMetric } from '@superset-ui/core';
+import { ChartProps, DataRecord, Metric } from '@superset-ui/core';
 
 interface FormData {
   groupby: string[];
@@ -34,16 +34,16 @@ interface QueryData {
 
 export type TableChartProps = ChartProps & {
   formData: FormData;
-  queryData: QueryData;
+  queriesData: QueryData[];
 };
 
 interface ColumnData {
   timeLag?: string | number;
 }
 export default function transformProps(chartProps: TableChartProps) {
-  const { height, datasource, formData, queryData } = chartProps;
+  const { height, datasource, formData, queriesData } = chartProps;
   const { columnCollection, groupby, metrics, url } = formData;
-  const { records, columns } = queryData.data;
+  const { records, columns } = queriesData[0].data;
   const isGroupBy = groupby?.length > 0;
 
   // When there is a "group by",
@@ -60,7 +60,7 @@ export default function transformProps(chartProps: TableChartProps) {
         map[current.metric_name] = current;
       }
       return map;
-    }, {} as Record<string, QueryObjectMetric>);
+    }, {} as Record<string, Metric>);
     rows = metrics.map(metric => (typeof metric === 'object' ? metric : metricMap[metric]));
   }
 

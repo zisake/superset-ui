@@ -7,17 +7,18 @@ This plugin provides MapBox for Superset.
 
 ### Usage
 
-Configure `key`, which can be any `string`, and register the plugin. This `key` will be used to lookup this chart throughout the app.
+Configure `key`, which can be any `string`, and register the plugin. This `key` will be used to
+lookup this chart throughout the app.
 
 ```js
 import MapBoxChartPlugin from '@superset-ui/legacy-plugin-chart-map-box';
 
-new MapBoxChartPlugin()
-  .configure({ key: 'map-box' })
-  .register();
+new MapBoxChartPlugin().configure({ key: 'map-box' }).register();
 ```
 
-Then use it via `SuperChart`. See [storybook](https://apache-superset.github.io/superset-ui-plugins/?selectedKind=plugin-chart-map-box) for more details.
+Then use it via `SuperChart`. See
+[storybook](https://apache-superset.github.io/superset-ui-plugins/?selectedKind=plugin-chart-map-box)
+for more details.
 
 ```js
 <SuperChart
@@ -25,8 +26,8 @@ Then use it via `SuperChart`. See [storybook](https://apache-superset.github.io/
   width={600}
   height={600}
   formData={...}
-  queryData={{
+  queriesData={[{
     data: {...},
-  }}
+  }]}
 />
 ```

@@ -21,7 +21,7 @@ import Mustache from 'mustache';
 import { scaleLinear } from 'd3-scale';
 import { Table, Thead, Th, Tr, Td } from 'reactable-arc';
 import { formatNumber, formatTime, styled } from '@superset-ui/core';
-import { InfoTooltipWithTrigger, MetricOption, Metric } from '@superset-ui/chart-controls';
+import { InfoTooltipWithTrigger, MetricOption } from '@superset-ui/chart-controls';
 import moment from 'moment';
 
 import FormattedNumber from './FormattedNumber';
@@ -117,9 +117,7 @@ class TimeTable extends React.PureComponent<ChartProps, {}> {
       return column.label;
     }
 
-    return (
-      <MetricOption openInNewWindow metric={row as Metric} url={fullUrl} showFormula={false} />
-    );
+    return <MetricOption openInNewWindow metric={row} url={fullUrl} showFormula={false} />;
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -128,7 +126,7 @@ class TimeTable extends React.PureComponent<ChartProps, {}> {
     if (column.timeRatio) {
       // Period ratio sparkline
       sparkData = [];
-      for (let i = column.timeRatio; i < entries.length; i++) {
+      for (let i = column.timeRatio; i < entries.length; i += 1) {
         const prevData = entries[i - column.timeRatio][valueField];
         if (prevData && prevData !== 0) {
           sparkData.push(entries[i][valueField] / prevData);
@@ -165,7 +163,7 @@ class TimeTable extends React.PureComponent<ChartProps, {}> {
   // eslint-disable-next-line class-methods-use-this
   renderValueCell(valueField: string, column: ColumnConfigProps, reversedEntries: Entry[]) {
     const recent = reversedEntries[0][valueField];
-    let v: number = 0;
+    let v = 0;
     let errorMsg;
     if (column.colType === 'time') {
       // Time lag ratio

@@ -18,7 +18,7 @@
  * under the License.
  */
 import { t, validateNonEmpty } from '@superset-ui/core';
-import { sections } from '@superset-ui/chart-controls';
+import { ControlPanelConfig, sections } from '@superset-ui/chart-controls';
 import {
   lineInterpolation,
   showLegend,
@@ -29,6 +29,10 @@ import {
   xAxisShowMinmax,
   showMarkers,
   yAxis2Format,
+  yAxisShowMinmax,
+  yAxisBounds,
+  yAxis2ShowMinmax,
+  yAxis2Bounds,
 } from '../NVD3Controls';
 
 export type Result = {
@@ -40,8 +44,12 @@ export type Data = {
   result?: Result[];
 };
 
-export default {
+const config: ControlPanelConfig = {
   controlPanelSections: [
+    {
+      ...sections.legacyRegularTime,
+      controlSetRows: [['time_range']],
+    },
     {
       label: t('Chart Options'),
       tabOverride: 'customize',
@@ -60,7 +68,8 @@ export default {
           },
           null,
         ],
-        [showLegend, showMarkers],
+        [showLegend],
+        [showMarkers],
         [lineInterpolation, null],
       ],
     },
@@ -68,8 +77,10 @@ export default {
       label: t('X Axis'),
       expanded: true,
       controlSetRows: [
-        [xAxisLabel, bottomMargin],
-        [xTicksLayout, xAxisFormat],
+        [xAxisLabel],
+        [bottomMargin],
+        [xTicksLayout],
+        [xAxisFormat],
         [xAxisShowMinmax, null],
       ],
     },
@@ -101,8 +112,10 @@ export default {
               },
             },
           },
-          'y_axis_format',
         ],
+        ['y_axis_format'],
+        [yAxisShowMinmax],
+        [yAxisBounds],
       ],
     },
     {
@@ -133,8 +146,10 @@ export default {
               },
             },
           },
-          yAxis2Format,
         ],
+        [yAxis2Format],
+        [yAxis2ShowMinmax],
+        [yAxis2Bounds],
       ],
     },
     {
@@ -149,12 +164,6 @@ export default {
       label: t('Left Axis Format'),
     },
   },
-  sectionOverrides: {
-    sqlaTimeSeries: {
-      controlSetRows: [['time_range']],
-    },
-    druidTimeSeries: {
-      controlSetRows: [['time_range']],
-    },
-  },
 };
+
+export default config;

@@ -17,18 +17,33 @@
  * under the License.
  */
 import React from 'react';
-import { legacyValidateInteger, legacyValidateNumber, t } from '@superset-ui/core';
-import { ControlPanelConfig } from '@superset-ui/chart-controls';
+import {
+  FeatureFlag,
+  isFeatureEnabled,
+  legacyValidateInteger,
+  legacyValidateNumber,
+  t,
+} from '@superset-ui/core';
+import {
+  ControlPanelConfig,
+  ControlPanelsContainerProps,
+  D3_TIME_FORMAT_DOCS,
+  sections,
+  sharedControls,
+} from '@superset-ui/chart-controls';
+
 import {
   DEFAULT_FORM_DATA,
   EchartsTimeseriesContributionType,
   EchartsTimeseriesSeriesType,
 } from './types';
+import { legendSection } from '../controls';
 
 const {
   area,
   annotationLayers,
   contributionMode,
+  emitFilter,
   forecastEnabled,
   forecastInterval,
   forecastPeriods,
@@ -43,13 +58,15 @@ const {
   rowLimit,
   seriesType,
   stack,
+  tooltipTimeFormat,
   truncateYAxis,
   yAxisBounds,
   zoomable,
+  xAxisLabelRotation,
 } = DEFAULT_FORM_DATA;
-
 const config: ControlPanelConfig = {
   controlPanelSections: [
+    sections.legacyTimeseriesTime,
     {
       label: t('Query'),
       expanded: true,
@@ -73,7 +90,8 @@ const config: ControlPanelConfig = {
           },
         ],
         ['adhoc_filters'],
-        ['limit', 'timeseries_limit_metric'],
+        ['limit'],
+        ['timeseries_limit_metric'],
         [
           {
             name: 'order_desc',
@@ -85,7 +103,7 @@ const config: ControlPanelConfig = {
             },
           },
         ],
-        ['row_limit', null],
+        ['row_limit'],
       ],
     },
     {
@@ -231,7 +249,7 @@ const config: ControlPanelConfig = {
             name: 'stack',
             config: {
               type: 'CheckboxControl',
-              label: t('Stack Lines'),
+              label: t('Stack series'),
               renderTrigger: true,
               default: stack,
               description: t('Stack series on top of each other'),
@@ -249,17 +267,21 @@ const config: ControlPanelConfig = {
               description: t('Draw area under curves. Only applicable for line types.'),
             },
           },
+        ],
+        [
           {
             name: 'opacity',
             config: {
               type: 'SliderControl',
-              label: t('Opacity'),
+              label: t('Area chart opacity'),
               renderTrigger: true,
               min: 0,
               max: 1,
               step: 0.1,
               default: opacity,
               description: t('Opacity of Area Chart. Also applies to confidence band.'),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.area?.value),
             },
           },
         ],
@@ -274,6 +296,8 @@ const config: ControlPanelConfig = {
               description: t('Draw a marker on data points. Only applicable for line types.'),
             },
           },
+        ],
+        [
           {
             name: 'markerSize',
             config: {
@@ -284,6 +308,8 @@ const config: ControlPanelConfig = {
               max: 100,
               default: markerSize,
               description: t('Size of marker. Also applies to forecast observations.'),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.markerEnabled?.value),
             },
           },
         ],
@@ -296,6 +322,77 @@ const config: ControlPanelConfig = {
               default: zoomable,
               renderTrigger: true,
               description: t('Enable data zooming controls'),
+            },
+          },
+        ],
+        isFeatureEnabled(FeatureFlag.DASHBOARD_CROSS_FILTERS)
+          ? [
+              {
+                name: 'emit_filter',
+                config: {
+                  type: 'CheckboxControl',
+                  label: t('Enable emitting filters'),
+                  default: emitFilter,
+                  renderTrigger: true,
+                  description: t('Enable emmiting filters.'),
+                },
+              },
+            ]
+          : [],
+        ...legendSection,
+        [<h1 className="section-header">{t('X Axis')}</h1>],
+        [
+          {
+            name: 'x_axis_time_format',
+            config: {
+              ...sharedControls.x_axis_time_format,
+              default: 'smart_date',
+              description: `${D3_TIME_FORMAT_DOCS}. ${t(
+                'When using other than adaptive formatting, labels may overlap.',
+              )}`,
+            },
+          },
+        ],
+        [
+          {
+            name: 'xAxisLabelRotation',
+            config: {
+              type: 'SelectControl',
+              freeForm: true,
+              clearable: false,
+              label: t('Rotate x axis label'),
+              choices: [
+                [0, '0°'],
+                [45, '45°'],
+              ],
+              default: xAxisLabelRotation,
+              renderTrigger: true,
+              description: t('Input field supports custom rotation. e.g. 30 for 30°'),
+            },
+          },
+        ],
+        // eslint-disable-next-line react/jsx-key
+        [<h1 className="section-header">{t('Tooltip')}</h1>],
+        [
+          {
+            name: 'rich_tooltip',
+            config: {
+              type: 'CheckboxControl',
+              label: t('Rich tooltip'),
+              renderTrigger: true,
+              default: true,
+              description: t('Shows a list of all series available at that point in time'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'tooltipTimeFormat',
+            config: {
+              ...sharedControls.x_axis_time_format,
+              label: t('Tooltip time format'),
+              default: tooltipTimeFormat,
+              clearable: false,
             },
           },
         ],
@@ -313,6 +410,8 @@ const config: ControlPanelConfig = {
               description: t('Logarithmic y-axis'),
             },
           },
+        ],
+        [
           {
             name: 'minorSplitLine',
             config: {
@@ -321,6 +420,18 @@ const config: ControlPanelConfig = {
               renderTrigger: true,
               default: minorSplitLine,
               description: t('Draw split lines for minor y-axis ticks'),
+            },
+          },
+        ],
+        [
+          {
+            name: 'yAxisTitle',
+            config: {
+              type: 'TextControl',
+              label: t('Primary y-axis title'),
+              renderTrigger: true,
+              default: '',
+              description: t('Title for y-axis'),
             },
           },
         ],
@@ -352,22 +463,14 @@ const config: ControlPanelConfig = {
                   "this feature will only expand the axis range. It won't " +
                   "narrow the data's extent.",
               ),
+              visibility: ({ controls }: ControlPanelsContainerProps) =>
+                Boolean(controls?.truncateYAxis?.value),
             },
           },
         ],
       ],
     },
   ],
-  // Time series charts need to override the `druidTimeSeries` and `sqlaTimeSeries`
-  // sections to add the time grain dropdown.
-  sectionOverrides: {
-    druidTimeSeries: {
-      controlSetRows: [['granularity', 'druid_time_origin'], ['time_range']],
-    },
-    sqlaTimeSeries: {
-      controlSetRows: [['granularity_sqla', 'time_grain_sqla'], ['time_range']],
-    },
-  },
   controlOverrides: {
     row_limit: {
       default: rowLimit,

@@ -18,7 +18,8 @@
  */
 import { Jed as BaseJed, JedOptions, DomainData, Translations } from './jed';
 
-export { Translations } from './jed';
+export * from './jed';
+export { default as __hack_reexport_jed } from './jed';
 
 /**
  * Superset supported languages.
@@ -57,3 +58,5 @@ export interface TranslatorConfig {
  * Key-value mapping of translation key and the translations.
  */
 export type LocaleData = Partial<Record<Locale, Translations>>;
+
+export default {};

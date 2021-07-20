@@ -16,107 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  appendExtraFormData,
-  overrideExtraFormData,
-} from '@superset-ui/core/src/query/processExtraFormData';
-
-describe('appendExtraFormData', () => {
-  it('should add allowed values to non-existent value', () => {
-    expect(
-      appendExtraFormData(
-        {
-          datasource: 'table_1',
-          granularity: 'something',
-          viz_type: 'custom',
-        },
-        {
-          filters: [{ col: 'my_col', op: '==', val: 'my value' }],
-        },
-      ),
-    ).toEqual({
-      datasource: 'table_1',
-      filters: [{ col: 'my_col', op: '==', val: 'my value' }],
-      granularity: 'something',
-      viz_type: 'custom',
-    });
-  });
-
-  it('should add allowed values to preexisting value(s)', () => {
-    expect(
-      appendExtraFormData(
-        {
-          granularity: 'something',
-          viz_type: 'custom',
-          datasource: 'table_1',
-          filters: [{ col: 'my_col', op: '==', val: 'my value' }],
-        },
-        {
-          filters: [{ col: 'my_other_col', op: '!=', val: 'my other value' }],
-        },
-      ),
-    ).toEqual({
-      granularity: 'something',
-      viz_type: 'custom',
-      datasource: 'table_1',
-      filters: [
-        { col: 'my_col', op: '==', val: 'my value' },
-        { col: 'my_other_col', op: '!=', val: 'my other value' },
-      ],
-    });
-  });
-
-  it('should add new freeform where', () => {
-    expect(
-      appendExtraFormData(
-        {
-          datasource: 'table_1',
-          granularity: 'something',
-          viz_type: 'custom',
-        },
-        {
-          extras: {
-            where: '1 = 0',
-          },
-        },
-      ),
-    ).toEqual({
-      datasource: 'table_1',
-      granularity: 'something',
-      viz_type: 'custom',
-      extras: {
-        where: '(1 = 0)',
-      },
-    });
-  });
-
-  it('should add new freeform where to existing where clause', () => {
-    expect(
-      appendExtraFormData(
-        {
-          datasource: 'table_1',
-          granularity: 'something',
-          viz_type: 'custom',
-          extras: {
-            where: 'abc = 1',
-          },
-        },
-        {
-          extras: {
-            where: '1 = 0',
-          },
-        },
-      ),
-    ).toEqual({
-      datasource: 'table_1',
-      granularity: 'something',
-      viz_type: 'custom',
-      extras: {
-        where: '(abc = 1) AND (1 = 0)',
-      },
-    });
-  });
-});
+import { overrideExtraFormData } from '@superset-ui/core/src/query/processExtraFormData';
 
 describe('overrideExtraFormData', () => {
   it('should assign allowed non-existent value', () => {
@@ -128,14 +28,14 @@ describe('overrideExtraFormData', () => {
           datasource: 'table_1',
         },
         {
-          time_grain_sqla: 'PT1H',
+          time_range: '100 years ago',
         },
       ),
     ).toEqual({
       granularity: 'something',
       viz_type: 'custom',
       datasource: 'table_1',
-      time_grain_sqla: 'PT1H',
+      time_range: '100 years ago',
     });
   });
 
@@ -146,17 +46,17 @@ describe('overrideExtraFormData', () => {
           granularity: 'something',
           viz_type: 'custom',
           datasource: 'table_1',
-          time_grain_sqla: 'PT1H',
+          time_range: '100 years ago',
         },
         {
-          time_grain_sqla: 'PT2H',
+          time_range: '50 years ago',
         },
       ),
     ).toEqual({
       granularity: 'something',
       viz_type: 'custom',
       datasource: 'table_1',
-      time_grain_sqla: 'PT2H',
+      time_range: '50 years ago',
     });
   });
 
@@ -167,9 +67,10 @@ describe('overrideExtraFormData', () => {
           granularity: 'something',
           viz_type: 'custom',
           datasource: 'table_1',
-          time_grain_sqla: 'PT1H',
+          time_range: '100 years ago',
         },
         {
+          // @ts-expect-error
           viz_type: 'other custom viz',
         },
       ),
@@ -177,7 +78,56 @@ describe('overrideExtraFormData', () => {
       granularity: 'something',
       viz_type: 'custom',
       datasource: 'table_1',
-      time_grain_sqla: 'PT1H',
+      time_range: '100 years ago',
+    });
+  });
+
+  it('should override pre-existing extra value', () => {
+    expect(
+      overrideExtraFormData(
+        {
+          granularity: 'something',
+          viz_type: 'custom',
+          datasource: 'table_1',
+          time_range: '100 years ago',
+          extras: {
+            time_grain_sqla: 'PT1H',
+          },
+        },
+        { time_grain_sqla: 'PT2H' },
+      ),
+    ).toEqual({
+      granularity: 'something',
+      viz_type: 'custom',
+      datasource: 'table_1',
+      time_range: '100 years ago',
+      extras: {
+        time_grain_sqla: 'PT2H',
+      },
+    });
+  });
+
+  it('should add extra override value', () => {
+    expect(
+      overrideExtraFormData(
+        {
+          granularity: 'something',
+          viz_type: 'custom',
+          datasource: 'table_1',
+          time_range: '100 years ago',
+        },
+        {
+          time_grain_sqla: 'PT1H',
+        },
+      ),
+    ).toEqual({
+      granularity: 'something',
+      viz_type: 'custom',
+      datasource: 'table_1',
+      time_range: '100 years ago',
+      extras: {
+        time_grain_sqla: 'PT1H',
+      },
     });
   });
 });

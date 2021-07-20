@@ -17,7 +17,12 @@
  * under the License.
  */
 import { t } from '@superset-ui/core';
-import { formatSelectOptions, D3_FORMAT_OPTIONS } from '@superset-ui/chart-controls';
+import {
+  ControlPanelConfig,
+  formatSelectOptions,
+  D3_FORMAT_OPTIONS,
+  sections,
+} from '@superset-ui/chart-controls';
 import {
   showLegend,
   xAxisLabel,
@@ -31,14 +36,15 @@ import {
   leftMargin,
 } from '../NVD3Controls';
 
-export default {
-  label: t('Bubble Chart'),
+const config: ControlPanelConfig = {
   controlPanelSections: [
+    sections.legacyRegularTime,
     {
       label: t('Query'),
       expanded: true,
       controlSetRows: [
-        ['series', 'entity'],
+        ['series'],
+        ['entity'],
         ['x'],
         ['y'],
         ['adhoc_filters'],
@@ -116,3 +122,5 @@ export default {
     },
   },
 };
+
+export default config;
